@@ -1,4 +1,5 @@
 import type { AccessRole } from "./privacy";
+import type { ContextMemorySource, ContextSourceFreshness } from "./index";
 import type {
   InferredIntent,
   MemoryConfidence,
@@ -203,6 +204,8 @@ export interface AdapterSandboxResult {
 
 export interface PreflightResult {
   preflightId: string;
+  sourceFreshness?: ContextSourceFreshness;
+  memorySource?: ContextMemorySource;
   request: ContextRequest;
   observerFrame: ObserverFrame;
   inferredIntent: InferredIntent;

@@ -25,4 +25,7 @@ Maintainers may edit, hide, or remove comments and contributions that violate
 this code. Severe or repeated violations may lead to temporary or permanent loss
 of participation privileges.
 
-TODO: Publish an official maintainer contact path before public release.
+Maintainer: [@vuthuanphat](https://github.com/vuthuanphat). For a confidential
+conduct report, request a private contact path without posting names, incident
+details or personal information publicly. Security reports follow SECURITY.md;
+a private reporting route must be verified before public release.

@@ -2,7 +2,11 @@
 
 > Status: Local-alpha documentation
 
-Date: 2026-07-02
+Date: 2026-07-02. Status of tables below: historical audit.
+
+Current cleanup evidence is in the [2026-10-11 execution report](plans/2026-10-11-cleanup-execution.md)
+and [component support map](component-support.md). The original findings below
+are preserved; they do not override the accepted native topology ADR.
 
 Scope: safe cleanup scan before further feature work. This pass does not delete,
 rewrite, force-push, or migrate data. It classifies the repository and records

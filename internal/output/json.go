@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/pkg/contract"
+	"github.com/vuthuanphat/lmti-atlas/pkg/contract"
 )
 
 func WriteJSON(w io.Writer, command string, status string, warnings []contract.BoundaryMessage, errors []contract.BoundaryMessage, data any) error {

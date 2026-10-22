@@ -1,0 +1,10 @@
+{
+  "name": "@atlas/web-api",
+  "version": "0.2.0-alpha.1",
+  "private": true,
+  "type": "module",
+  "description": "LMTI local operator API over existing native/Python owners",
+  "scripts": { "build": "tsc -p tsconfig.json", "test": "node --test test/*.test.mjs" },
+  "engines": { "node": ">=24" },
+  "license": "Apache-2.0"
+}

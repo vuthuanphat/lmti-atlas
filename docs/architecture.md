@@ -2,9 +2,54 @@
 
 > Status: Local-alpha documentation
 
-LMTI is an independent local AI memory, safety, and skill-routing layer for AI
-coding agents and software projects. The current architecture is built around a
-Codex-first local workflow.
+Planning update 2026-10-13: [master r5](LMTI_MASTER_PLAN.md) prioritizes a
+[local browser UI](plans/2026-10-13-web-ui-transition.md) for project MCP setup.
+The [React/TypeScript MCP SPA](local-web.md) is implemented with a local package;
+default cutover remains gated. The [WEB-01 local Node API](plans/2026-10-13-web-api-execution.md)
+and native façade now have authenticated HTTP/native/Python evidence. The [ADR](adr/2026-10-13-web-presentation.md)
+preserves C++/SQLite ownership, Python stdio SDK/MCP and TS/Go compatibility.
+Profile/library console adapters now exist; Node is a thin coordinator, not a second
+domain/storage owner. Qt Widgets remains the compatibility/recovery UI until
+parity/cutover; Qt Core/Sql remains in native adapters.
+
+Project MCP profiles are shared by Codex/Cursor within the Agent–project layer. The
+[CP-01 slice](plans/2026-10-13-project-mcp-profile.md) implements a typed nonsecret
+profile owner, client-specific config adapters and Qt setup/preview/verification.
+The [profile ADR](adr/2026-10-13-project-mcp-profile.md) defines the implemented
+LMCP owner and Python file-format adapter. [Usage](project-mcp.md) records
+merge/apply/restore and probe limits. It is not an enforcement proxy; actual
+Cursor/operator/live-provider acceptance is open. Large-project structure,
+scoped context and real read-only IoT remain the
+broader direction; the human UI supports connections, source management and review.
+The implemented architecture below remains the local-alpha boundary.
+Observation/network/cache ownership needs an additional ADR; a direct collector
+or shared service is conditional on the pilot, not an existing capability.
+
+Before selecting CP-01, the owner authorized r3 execution. The [M1 design](plans/2026-10-13-agent-layer-m1.md)
+and [additive boundary ADR](adr/2026-10-13-agent-project-layer.md) specify the
+common envelope and local profile. Installed Codex MCP client feasibility has
+synthetic evidence. The additive [native read layer](agent-layer.md) now maps
+owner snapshots to common envelopes with lookup/paging/relations; existing
+interfaces below keep their schemas and owners. Cross-source/live acceptance is open.
+
+LMTI organizes project knowledge and system architecture for AI agents.
+Memory, context, privacy, verification and reviewed lessons are independent
+foundations; Architecture Studio owns the separate topology/IoT domain.
+The [master plan](LMTI_MASTER_PLAN.md) coordinates the current direction and the
+[support map](component-support.md) records component ownership.
+
+The accepted local Studio MVP uses a Qt-independent C++20 domain, Qt Core/Sql
+storage and JSON adapters, Qt Widgets desktop, and Python SDK/MCP. The SDK calls
+the native CLI with fixed arguments and trusted launcher scope. Proposal review
+changes the document; save commits a revision. There is no device dispatch.
+See the [Studio guide](topology-studio.md) and [ADR](adr/2026-10-11-native-topology.md).
+
+TS remains the project-memory implementation. Go retains experimental memory
+compatibility with a separate schema and Node SQLite bridge. Topology and memory
+link through context/evidence, not shared schema or direct Agent store handles.
+Topology SQLite is unencrypted and supports only nonsecret public/internal
+metadata. Same-user launcher grants do not provide an OS sandbox or multi-user
+authorization. The Codex-first project-memory pipeline follows below.
 
 Naming note: LMTI is the product name. ATLAS is a legacy/internal codename, and
 Project Atlas is the compiled project map artifact produced by `lmti compile`.
@@ -86,6 +131,10 @@ context package and validates adapter manifests through sandbox checks. Codex is
 the primary workflow today; other agent runtimes are not implemented as
 supported delivery paths yet.
 
+The adapter sandbox checks are policy/manifest validation, not process or OS
+isolation. Reference session demos pass in-process memory helpers to local
+sample agents and must not be promoted to an external Agent boundary.
+
 ### Lesson Capture
 
 After a task, lesson candidates can be proposed through `lmti task done
@@ -106,3 +155,8 @@ packages/runtime     Codex context preparation, Action View, runtime orchestrati
 packages/security    Tool permission guard.
 packages/cli         Command adapter for local workflows.
 ```
+
+CLI imports the context/action API through `@atlas/runtime/agent`; the package
+root retains the reference demo exports for compatibility. Demo session/tool
+orchestration is isolated in `demo-runtime.ts`. The MCP TS package remains a
+project-memory stub; Python MCP is a topology transport, not its replacement.

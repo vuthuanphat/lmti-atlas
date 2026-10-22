@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<title>LMTI · Prototype M1</title>
+<link rel="stylesheet" href="prototype.css">
+<script src="prototype.js" defer></script>
+</head>
+<body>
+<div class="prototype-note">BẢN THIẾT KẾ M1 · DỮ LIỆU MÔ PHỎNG · Không kết nối nguồn hoặc sửa dự án thật</div>
+<div class="shell">
+<aside>
+<a class="brand" href="#main">LMTI<span>Project intelligence</span></a>
+<div class="project-label">Factory Monitor <small>Dự án mẫu</small></div>
+<nav aria-label="Vùng làm việc">
+<button class="nav active" data-page="connect" aria-pressed="true">Kết nối</button>
+<button class="nav" data-page="project" aria-pressed="false">Dự án</button>
+<button class="nav" data-page="review" aria-pressed="false">Xét duyệt <span class="count">1</span></button>
+</nav>
+<div class="sidebar-foot">Agent đọc theo phạm vi.<br>Bạn kiểm soát nguồn và thay đổi.</div>
+</aside>
+<main id="main">
+<section id="connect" class="page" aria-labelledby="connect-title">
+<div class="eyebrow">BƯỚC 1 / KẾT NỐI</div>
+<h1 id="connect-title" tabindex="-1">Cho Agent hiểu dự án của bạn</h1>
+<p class="intro">Chọn nguồn và phạm vi dữ liệu Agent được dùng. Kiểm tra liên kết trước khi bắt đầu.</p>
+<div class="grid">
+<article class="card"><span class="tag">Đã chọn</span><h2>Cấu trúc dự án</h2><p>Phân hệ, phần mềm, bản phát hành và thiết bị.</p><dl><dt>Nguồn</dt><dd>Project native · revision 1</dd><dt>Phạm vi</dt><dd>Factory Demo · metadata public</dd><dt>Quyền</dt><dd>Chỉ đọc</dd></dl><button data-go="project">Kiểm tra cấu trúc</button></article>
+<article class="card"><span class="tag muted">Chưa liên kết</span><h2>Code và thiết kế</h2><p>Liên kết code và tài liệu với thành phần dự án.</p><label for="document-source">Nguồn tài liệu</label><select id="document-source"><option>Tài liệu cục bộ</option>Google Drive</option>Catalog hiện có</option></select><p class="small">Prototype chỉ mô tả lựa chọn. Nội dung chưa được đọc hoặc gửi cho Agent.</p><button id="preview-mapping">Xem mapping mẫu</button><p id="mapping-note" role="status" class="small"></p></article>
+<article class="card"><span class="tag muted">Cần chọn nguồn</span><h2>Trạng thái thiết bị</h2><p>Đọc từ nền tảng IoT đang vận hành với quyền chỉ đọc.</p><dl><dt>Kết nối</dt><dd>Chưa cấu hình</dd><dt>Phiên bản đang chạy</dt><dd>Chưa có dữ liệu</dd></dl><p class="small">Thiết bị có trong thiết kế chưa có nghĩa đang online.</p></article>
+</div>
+<article class="agent-bar"><div><h2>Agent của bạn</h2><p>Codex · đọc cấu trúc dự án, không điều khiển thiết bị</p></div><button class="primary" data-go="project">Thử một câu hỏi mẫu</button></article>
+<div class="permission-note"><strong>Phạm vi Agent nhận được</strong><p>Thông tin public tại Factory Demo. Đường dẫn cục bộ và credential không được xuất. Nguồn chưa liên kết được báo là phần thiếu.</p></div>
+</section>
+<section id="project" class="page" hidden aria-labelledby="project-title">
+<div class="eyebrow">BƯỚC 2 / HIỂU DỰ ÁN</div>
+<h1 id="project-title" tabindex="-1">Firmware này liên quan đến đâu?</h1>
+<p class="intro">Một góc nhìn từ phần mềm đến thiết bị, kèm nguồn và điều chưa biết.</p>
+<div class="question">Nếu thay đổi cấu trúc dữ liệu của Sensor Firmware, service và thiết bị nào cần kiểm tra?</div>
+<div class="path" aria-label="Các đối tượng liên quan"><span>Sensor Firmware</span><b>→</b><span>Gateway Agent</span><b>→</b><span>Monitor Backend</span></div>
+<p class="small">Quan hệ khai báo từ project revision 1. Đường liên quan này chưa chứng minh ảnh hưởng khi chạy.</p>
+<div class="split">
+<article class="card"><h2>Sensor Firmware</h2><dl><dt>Thành phần</dt><dd>sensor-firmware</dd><dt>Thiết bị được khai báo</dt><dd>Machine A</dd><dt>Phiên bản mong muốn</dt><dd>v1.0.0 · khai báo</dd><dt>Code/thiết kế</dt><dd>Mapping còn thiếu</dd></dl><details><summary>Nguồn và bằng chứng</summary><p>Native project · factory-monitor · revision 1. Binding là mong muốn; chưa có bằng chứng phiên bản đang chạy.</p></details></article>
+<article class="card"><h2>Machine A <span id="observation-badge" class="tag muted">Chưa có dữ liệu</span></h2><dl><dt>Phiên bản đang chạy</dt><dd id="observed-value">Chưa biết</dd><dt>Nguồn quan sát</dt><dd id="observed-source">Chưa liên kết</dd><dt>Thời điểm mẫu</dt><dd id="observed-time">Không có</dd></dl><p id="observation-note" role="status">Cần nguồn quan sát thật để xác nhận. Không suy từ phiên bản mong muốn.</p><label for="scenario">Thử trạng thái trong prototype</label><select id="scenario"><option value="unknown">Chưa cấu hình nguồn</option><option value="fresh">Có mẫu mới — mô phỏng</option><option value="stale">Mẫu cũ — mô phỏng</option><option value="unavailable">Mất nguồn — mô phỏng</option><option value="revoked">Thu hồi quyền — mô phỏng</option></select></article>
+</div>
+<div class="permission-note"><strong>Phần cần kiểm chứng</strong><p id="unknown-note">Mapping code chưa được xác nhận; chưa có phiên bản thực tế của thiết bị. Kết quả chỉ bao phủ cấu trúc được phép đọc.</p></div>
+<button class="primary" data-go="review">Xem đề xuất cần review</button>
+</section>
+<section id="review" class="page" hidden aria-labelledby="review-title">
+<div class="eyebrow">BƯỚC 3 / KIỂM SOÁT</div>
+<h1 id="review-title" tabindex="-1">Xét duyệt thay đổi</h1>
+<p class="intro">Kiểm tra diff và phiên bản nguồn trước khi chấp nhận đề xuất.</p>
+<article class="card review-card">
+<span id="review-badge" class="tag">Chờ review · mô phỏng</span><h2>Yêu cầu review “Validate Sampling”</h2>
+<p>Agent đề xuất chuyển việc kiểm chứng sang trạng thái review. Không thay firmware hoặc điều khiển thiết bị.</p>
+<table><thead><tr><th>Trường</th><th>Hiện tại</th><th>Đề xuất</th></tr></thead><tbody><tr><td>Work state</td><td>todo</td><td>review</td></tr><tr><td>Project revision</td><td id="current-revision">1</td><td>Yêu cầu revision 1</td></tr></tbody></table>
+<details><summary>Lý do và giới hạn</summary><p>Cần kiểm chứng sampling trước khi công nhận thay đổi. Chưa có observation thật; review không tạo bằng chứng chạy và không làm việc thành Done.</p></details>
+<div class="actions"><button id="accept" class="primary">Chấp nhận trong prototype</button><button id="reject">Từ chối trong prototype</button><button id="stale-proposal">Thử nguồn đã đổi</button></div>
+<p id="review-note" role="status">Các nút chỉ đổi trạng thái giao diện mô phỏng, không lưu project.</p>
+</article>
+<button data-go="connect">Quay lại kết nối</button>
+</section>
+</main>
+</div>
+</body>
+</html>
+

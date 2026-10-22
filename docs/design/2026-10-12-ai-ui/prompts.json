@@ -1,0 +1,164 @@
+{
+  "date": "2026-10-12",
+  "mode": "built-in image_gen",
+  "status": "proposed—not approved or implemented",
+  "common_prompt": "Use case: ui-mockup. Asset type: high-fidelity desktop software interface design for LMTI Architecture Studio, a local project/software/hardware/knowledge management application. Create ONE complete page per image, flat front-facing screenshot, landscape 1440x900 design viewport; no monitor, browser chrome, perspective, collage, watermark, marketing artwork or decorative illustration. This is a proposed design, not a screenshot of implemented capabilities. Use exclusively fictional example metadata, no secrets, real file paths, real users or credentials.\nDesign system: polished calm professional engineering workspace. Compact deep navy #162238 left sidebar, approx 224px, with white LMTI wordmark and subtle small 'Architecture Studio'. Main canvas #F5F7FA, white content surfaces, #DCE3EB dividers, dark #202A3A text, muted #64748B text, restrained royal blue #3563E9 primary action and selection. Segoe UI / Inter-like readable sans serif. Consistent 8px spacing grid, 28px content padding, 6px corner radius, minimal shadow, 38px table rows, comfortable 13-14px body text, 26px page titles. No giant card spacing, cramped cells, excessive borders, pale unreadable text or five simultaneous toolbars.\nFixed sidebar compact top-aligned: 'Project library', project switcher 'Factory Monitor', section 'PROJECT' with 'Overview', 'Software', 'Hardware', 'Architecture', 'Work', 'Releases', section 'KNOWLEDGE & AGENT' with 'Knowledge', 'Agent', footer 'Project settings', 'English'. Include simple coherent outline icons. Main top bar 56px: breadcrumb 'Factory Monitor / [page]', saved status 'Saved · r12', small Undo and Redo icons, one blue 'Save' button. Page heading and one sentence purpose. Sub-navigation as compact tabs. One page primary action, selected-record Edit / More actions subtle. Search local to page. Show metadata scope truthfully: desired is not observed, available is not healthy, approval is not runtime verification. No user accounts, cloud sync, live online statuses, deployment, flashing, executing agents, or fake telemetry. Use only short accurate English UI labels. Tables must have clear aligned columns and generous readable text. Reserve a useful right details panel only when specified; no panel covering a table. Use the same shell on every page.",
+  "pages": [
+    {
+      "id": "01-overview",
+      "title": "Overview",
+      "nav": "Overview",
+      "brief": "Project dashboard. Heading 'Overview', goal 'Coordinate firmware, gateway software and verification work.' A prominent two-column block: 'Needs attention' on left with three actionable rows 'Gateway contract blocked', 'Sampling validation needs evidence', 'Milestone awaits review', each small reason and 'Open'; 'Next steps' on right with 'Add a component', 'Create a release', 'Plan verification work'. Underneath a compact 'Open work' table with columns Work, State, Component, Release, and 4 fictional tasks. Bottom compact count strip: '4 components', '3 devices', '2 candidate releases', '2 / 6 work complete'. Distinguish current saved metadata and unknown observed versions. Avoid progress chart implying readiness. Sidebar Overview active. Dashboard must have clear hierarchy, practical actions, balanced information density with no huge empty panels."
+    },
+    {
+      "id": "02-project-library",
+      "title": "Project library",
+      "nav": "Project library",
+      "brief": "Global library page. Sidebar only global 'Project library' active and small 'Recent projects' entries Factory Monitor, Edge Gateway, Sensor Firmware; project-scoped navigation hidden until open. No saved project toolbar on this global page. Header 'Project library', subtitle 'Your local projects, organized in one place.' One blue '+ Create project'; secondary 'Link folder' and compact 'Open file'. Compact search and All projects / Pinned / Recent filters with a List/Cards segmented control and Name / Last opened sort. Main white well-sized list with 6 projects, columns Project, Folder, Last opened, Availability, actions Open and subtle More. Use folder aliases only. Availability badge neutral 'Available locally'; one 'File moved' amber with 'Locate file'. Below list a small useful starter strip 'New to LMTI?' with 'Explore sample project'. No account/team UI or pretend project health. Show pin icons and clear row hover."
+    },
+    {
+      "id": "03-software-components",
+      "title": "Software · Components",
+      "nav": "Software",
+      "brief": "Software page, Components tab active, tabs Components / Repositories / Dependencies. Heading 'Software', short purpose. Primary '+ Add component'. Compact search and Kind filter, count '6 components'. Main white inventory table with aligned columns Component, Kind, Repository, Devices, Visibility. Example rows Sensor firmware (firmware), Gateway agent (gateway), Monitor backend (backend), Telemetry parser (service). Sensor firmware selected. Reserved right details panel approx320px: title Sensor firmware, kind/visibility/repository summary, compact tabs Summary / Related work, one 'Edit component' button plus small related actions 'Create release', 'Link desired version', 'Add work'. Linked records section with candidate version 0.2.0, Sensor board, Validate sampling. Clearly labelled desired binding, observed version Unknown. No giant full-width stacked buttons. Sidebar Software active."
+    },
+    {
+      "id": "04-software-repositories",
+      "title": "Software · Repositories",
+      "nav": "Software",
+      "brief": "Software page Repositories tab active; sibling tabs Components / Repositories / Dependencies. Primary '+ Add repository'. Table columns Repository, Locator, Visibility, Linked components; rows Sensor repository, Gateway repository, Backend repository with fictional aliases 'sensor-source', 'gateway-source', 'backend-source', public/internal visibility. Selected repository details at right shows local reference metadata and 2 linked components, 'Edit repository'. Small note 'References only. Linking does not clone or scan source.' No remote network health or actual URLs/paths, credentials or git integration claims."
+    },
+    {
+      "id": "05-software-dependencies",
+      "title": "Software · Dependencies",
+      "nav": "Software",
+      "brief": "Software Dependencies tab. Primary '+ Add dependency'. Searchable table of source component, target component, interface/contract: Sensor firmware → Gateway agent / Sampling payload v2; Gateway agent → Monitor backend / Event envelope v1; Monitor backend → Telemetry parser / Reading schema. Selected dependency right inspector with Source, Target, Contract, Visibility and 'Edit dependency', related component links. Note 'Declared relationships, not inferred runtime traffic'. Keep readable rows and clear direction arrows."
+    },
+    {
+      "id": "06-hardware-devices",
+      "title": "Hardware · Devices",
+      "nav": "Hardware",
+      "brief": "Hardware Devices tab with tabs Devices / Targets / Software bindings. Primary '+ Add device'. Search plus Kind and Site filters. Table Device, Kind, Site, Desired software, Observed version. Fictional Assembly machine A, Edge gateway B, Sampling sensor C. Desired sensor-firmware 0.2.0 metadata; all observed labels Unknown. Device selected right details panel with site factory-demo, desired enabled, related bindings and work, 'Edit device', 'Edit topology', 'Link desired version'. No online/offline dots, telemetry, deploy/flash actions."
+    },
+    {
+      "id": "07-hardware-targets",
+      "title": "Hardware · Targets",
+      "nav": "Hardware",
+      "brief": "Hardware Targets tab. Primary '+ Add target'. Table Target, Board / model, Hardware revision, Architecture; Sensor board STM32-class rev B arm; Edge board x86 rev A x86_64. Selected target inspector with exact metadata and 2 linked candidate releases, 'Edit target' and links. Targets are hardware compatibility metadata, not devices executing firmware."
+    },
+    {
+      "id": "08-software-bindings",
+      "title": "Hardware · Software bindings",
+      "nav": "Hardware",
+      "brief": "Hardware Software bindings tab. Primary '+ Add binding'. Table Device, Component, Desired release, Target, Observed version; Assembly machine A, Sensor firmware, 0.2.0, Sensor board, Unknown. Right binding inspector groups Desired configuration versus Observed state, explicitly Unknown with no fake verification. Related release/component/device links, 'Edit binding', 'Add validation work'. State 'Desired configuration only' neutral."
+    },
+    {
+      "id": "09-architecture-topology",
+      "title": "Architecture · Device topology",
+      "nav": "Architecture",
+      "brief": "Architecture Device topology tab, tabs Device topology / Software relationships. Purpose 'Design declared device topology.' Main broad white/very pale grid canvas with 5 neatly placed named simple node cards Sensor C, Machine A, Gateway B, Broker, Monitor service. Declared connections clearly labelled, tasteful no sci-fi graphics. Compact canvas toolbar Add device / Declare connection, selection/move icons, Zoom − 100% + / Fit. Small legend declares node types and 'Declared connections'. Selected Gateway B has reserved right inspector for site/kind/desired config, related work, Edit. Bottom '5 devices · 4 declared connections · no live telemetry'. No network discovery or device commands."
+    },
+    {
+      "id": "10-architecture-relationships",
+      "title": "Architecture · Software relationships",
+      "nav": "Architecture",
+      "brief": "Architecture Software relationships tab. Main organized bipartite diagram: left software nodes Sensor firmware, Gateway agent, Monitor backend; right device nodes Machine A, Gateway B, Monitor service. Clear blue software nodes, muted teal device nodes and edges labelled 'desired 0.2.0', 'desired 1.1.0', dependency edge 'Payload v2'. Compact legend software/device/desired binding/declared dependency, Zoom/Fit controls. Count 'Showing 3 of 3 components · 3 of 3 devices'. Right selected Sensor firmware inspector with related releases/work. Explicit small note 'Relationships are declared metadata; observed versions are unknown'. No glow or live status."
+    },
+    {
+      "id": "11-work-list",
+      "title": "Work · List",
+      "nav": "Work",
+      "brief": "Work page with tabs Work items / Milestones and a compact List / Board switch with List active. Primary '+ Add work'. Local search and State / Kind filters. Main table columns Work, State, Component, Release, Milestone, Evidence. 6 readable tasks grouped by simple states: Validate sampling / Review / Sensor firmware / 0.2.0 / Pilot / Evidence recorded; Gateway payload contract / Blocked / Gateway agent /1.1.0 /Pilot /Missing; Update parser /Todo; Review release metadata /In progress. State pills readable neutral/blue/amber, no fake readiness. Selected row inspector with checklist, links, evidence summary and 'Edit work'; explicit missing evidence warning if selected blocked task."
+    },
+    {
+      "id": "12-work-board",
+      "title": "Work · Board",
+      "nav": "Work",
+      "brief": "Work Work items tab, Board switch active. Primary '+ Add work'. Search/State filters compact. Four or five columns Todo / In progress / Blocked / Review / Done with 2-3 compact legible task cards per populated column. Cards have two-line title, small component/release/milestone badges, explicit evidence missing or recorded text, small more menu. No avatars, assignee claims or unimplemented drag-and-drop icons. Board uses same underlying work metadata; Done means work checklist/evidence only. No right inspector until selected; keep all columns within canvas and readable. No unrealistic live feeds."
+    },
+    {
+      "id": "13-milestones",
+      "title": "Work · Milestones",
+      "nav": "Work",
+      "brief": "Work Milestones tab active. Primary '+ Add milestone'. Table Milestone, Due date, Linked work, Acceptance, Evidence with Pilot baseline / 2026-10-20 / 2 of 4 complete /Pending /Missing; Firmware validation /2026-10-24 /1 of 2 /Pending. Right detail panel for Pilot baseline: acceptance criteria, linked work checklist, evidence reference field shown not editing, status 'Acceptance pending'; 'Edit milestone'. Acceptance disabled while linked work incomplete, explanation 'Complete linked work and record acceptance evidence first'. Do not auto-approve due to progress percentage."
+    },
+    {
+      "id": "14-releases",
+      "title": "Releases · Versions",
+      "nav": "Releases",
+      "brief": "Releases page with tabs Releases / Evidence. Primary '+ Create release'. Component and Review state filters, search. Table Version, Component, Target, Source revision, Review state. Versions 0.2.0 Sensor firmware / Sensor board / sample-rev-12 /Candidate; 1.1.0 Gateway agent /Edge board /sample-rev-9 /Approved; 1.0.0 Gateway agent /Edge board /sample-rev-7 /Retired. Selected approved 1.1.0 right inspector with metadata locked label and 'Create new version' action, related work/evidence. Explicit 'Approval reviews metadata; it does not prove installation'. No deploy buttons."
+    },
+    {
+      "id": "15-release-evidence",
+      "title": "Releases · Evidence",
+      "nav": "Releases",
+      "brief": "Releases Evidence tab. Primary '+ Record evidence'. Filters Release / Result and search. Table Release, Device, Result, Evidence, Source, Recorded. Synthetic rows 0.2.0 /Machine A /Passed /Sampling check /Operator note /12 Oct 2026; 1.1.0 /Gateway B /Unknown /Contract review /Local report /11 Oct 2026. Right evidence inspector record type/source/time/text, related release/device/work, 'Edit evidence'. Keep result distinct from approval and observed installation. No automatic test execution."
+    },
+    {
+      "id": "16-knowledge-references",
+      "title": "Knowledge · References",
+      "nav": "Knowledge",
+      "brief": "Knowledge section. Top-level sub-navigation References / Project map / Memory / Lessons / Task context (proposed flattened information architecture, shared source connection banner for connected sections). References active. Primary '+ Add reference'. Table Reference, Component, Fingerprint, Source state with Sampling specification / Sensor firmware /sha256: short synthetic digest /Source not loaded; Gateway contract /Gateway agent /short digest /Source not loaded. Selected reference inspector metadata, visibility, related component, 'Edit reference'. Distinguish reference from loaded knowledge. No open raw source buttons and no implied Agent authorization."
+    },
+    {
+      "id": "17-knowledge-project-map",
+      "title": "Knowledge · Project map",
+      "nav": "Knowledge",
+      "brief": "Knowledge Project map tab. Compact source banner 'Local source connected · public summaries · Snapshot 12 Oct 2026', secondary 'Change source' and 'Reload'. Main searchable outline/table of Kind, Record, Summary: Module /sensor-core /Sampling and validation rules; Architecture /Source boundary /Native typed core with independent adapters; Rule /Secret handling /External context excludes restricted data. A right details panel shows a concise allowed summary and provenance/classification, not raw code. Only policy-checked public entries. Source connection is explicit. No Compile/run/import buttons or automatic repository scanning. No fabricated freshness certification."
+    },
+    {
+      "id": "18-knowledge-memory",
+      "title": "Knowledge · Memory",
+      "nav": "Knowledge",
+      "brief": "Knowledge Memory tab with shared connected local-source banner. Searchable compact table Record, Summary, Visibility, Updated; 4 fictional allowed summaries, internal summaries shown only as allowed sanitized summaries rather than raw content. Selected item detail shows safe summary, source/category, last update and egress eligibility. Count '4 allowed summaries'; neutral small 'Restricted records excluded'. No raw secret view, reveal button, arbitrary edit/delete/import, direct database access or invented encryption badge."
+    },
+    {
+      "id": "19-knowledge-lessons",
+      "title": "Knowledge · Lessons",
+      "nav": "Knowledge",
+      "brief": "Knowledge Lessons tab. Source banner with operator review capability 'Review enabled for this session'. Table Lesson, Summary, State with 2 Pending, 2 Approved, 1 Rejected examples. Pending row selected opens reserved review panel with concise lesson candidate summary, evidence refs fictional, confidence 0.86, last verified 12 Oct 2026, privacy check Passed, explicit checkbox 'I reviewed evidence and privacy', enabled only when checked Approve and Reject separate actions. Clearly note 'Only approved lessons may enter task context'. No automatic approval or execute-tests button. Review deliberately distinct from release approval."
+    },
+    {
+      "id": "20-knowledge-task-context",
+      "title": "Knowledge · Task context",
+      "nav": "Knowledge",
+      "brief": "Knowledge Task context tab. Shared explicit source banner. Two-column useful workflow: left compact task input 'Review sampling validation requirements', fixed target 'External model · allowed public summaries', primary 'Prepare context', and skill recommendation 'Validation review · recommendation only'. Right broad readable context preview with structured sections Project summary / Relevant modules / Approved lessons / Scope; no giant JSON dump. Footer of preview 'Output checked', buttons Copy and Export, technical details collapsed. Separate state 'Restricted and unreviewed content excluded'. No sending to remote model or automatic skill/test execution."
+    },
+    {
+      "id": "21-agent-context",
+      "title": "Agent · Context",
+      "nav": "Agent",
+      "brief": "Agent Context tab with siblings Context / Review / Setup. Clear summary banner 'Saved snapshot · r12 · public project metadata', site selector factory-demo. Main structured scope cards/table: Project Factory Monitor; Site factory-demo; Sharing public metadata only; Observed versions Unknown; counts allowed components/devices/releases/work. A compact allowed-record list. Technical details JSON collapsed at bottom, not the main interface. Clarify 'Unsaved edits are not included in SDK context' in restrained note. No connected-client badge without evidence, no chatbot, arbitrary prompt console or execute tools."
+    },
+    {
+      "id": "22-agent-review",
+      "title": "Agent · Review",
+      "nav": "Agent",
+      "brief": "Agent Review tab. Primary 'Import proposal'. Two-column proposal review screen from synthetic loaded file: Work 'Validate sampling', Saved revision r12, current state Todo → proposed Review, allowed scope factory-demo, preconditions all checked; explicit change comparison old/new row. Right review panel concise summary and what changes, 'Apply to document' blue and Cancel. Footer 'Applying edits the draft. Save persists it. Devices are not executed.' No arbitrary command or code strings; proposal bounded to work state. Version conflict state as small secondary explanatory callout example not simultaneousblockingvalid state."
+    },
+    {
+      "id": "23-agent-setup",
+      "title": "Agent · Setup",
+      "nav": "Agent",
+      "brief": "Agent Setup tab. Three tidy sections: 'Local SDK / MCP boundary' with configured native binaries and project/site scope aliases; 'Capabilities' list Read saved public metadata, Inspect allowed records, Propose work-state changes; 'Connection status' with 'Client connection not verified'. Primary action only 'View setup instructions' or configuration instructions, no fake start-agent button. Small trusted-launcher explanation. No editable grant expansion, secrets, fake server online, shell console or remote credentials."
+    },
+    {
+      "id": "24-project-settings",
+      "title": "Project settings",
+      "nav": "Project settings",
+      "brief": "Project settings proposed dedicated management page instead of scattered dialogs. Header 'Project settings'. Clean tabs General / Local files. General form max720px Name 'Factory Monitor', Goal 'Coordinate firmware and gateway verification', Visibility select Internal with short explanation, read-only project identifier fixture-factory and saved revision12. Footer Save changes and Cancel, distinct from global document Save state. Local folder alias factory-monitor shown via compact metadata card with link-management guidance. Sidebar project settings active. No user/team permission screen, secret inputs or destructive delete-project button. Clearly draft form, validation near fields."
+    },
+    {
+      "id": "25-create-project",
+      "title": "Create project",
+      "nav": "Project library",
+      "brief": "Project library background with a well-proportioned centered create-project dialog 640px. Clear title 'Create project'. Two clear field groups Project details (Name, Goal), Local folder (Parent folder alias with Browse, New folder name). Live destination preview fictional 'Projects / sensor-firmware / project.lmti.sqlite' not real machine paths. Short note 'Creates project metadata; existing source is left unchanged'. One blue 'Create project' and secondary Cancel fixed footer. Required field markers, short hints, no overwhelming inputs, no credentials. Background subdued but identifiable shell."
+    },
+    {
+      "id": "26-edit-work-validation",
+      "title": "Edit work · Validation state",
+      "nav": "Work",
+      "brief": "Work page background with large clean centered edit-work dialog ~720px width. Heading 'Edit work'. Grouped form: Summary with Title 'Validate sampling', Kind Validation, State Done; Links with Component Sensor firmware, Release0.2.0, optional Device Machine A and Milestone Pilot; Completion with Checklist 'Sampling checks reviewed' and Evidence reference EMPTY. Show precise inline amber/red error under Evidence reference 'Evidence is required before marking validation work Done'. Draft remains filled; scrollable form; fixed footer Cancel and blue Save changes. No generic full-page error, no lost inputs, no actual credential strings."
+    }
+  ]
+}

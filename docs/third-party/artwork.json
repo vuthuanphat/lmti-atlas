@@ -1,0 +1,97 @@
+{
+  "origin": "Image AI generated for LMTI on 2026-10-22",
+  "delivery": "deterministic PNG derivatives; original source artwork retained",
+  "externalIconLibrary": false,
+  "assets": [
+    {
+      "file": "apps/web-ui/src/assets/brand/lmti-mark.png",
+      "sha256": "8609e75274cca17d25767c07dcfe67c36b6e57c46ac89afc32acfecc3f37aae6",
+      "bytes": 673983
+    },
+    {
+      "file": "apps/web-ui/src/assets/icons/activity.png",
+      "sha256": "cddecfecf4a7c170846795aaafb47e162f4712766ec9aca4143e69f981952bd9",
+      "bytes": 181088
+    },
+    {
+      "file": "apps/web-ui/src/assets/icons/agent.png",
+      "sha256": "3bab801a45360d329fe58bc16eef109dd9fbf0b22651b782f4fe7c5c80c276e1",
+      "bytes": 404060
+    },
+    {
+      "file": "apps/web-ui/src/assets/icons/architecture.png",
+      "sha256": "891e33a07b7f8326832de1950ee17aafd750c46585cc632c5bee3e4bef73adeb",
+      "bytes": 317086
+    },
+    {
+      "file": "apps/web-ui/src/assets/icons/connection.png",
+      "sha256": "f0e3bcc4e8ec6ff2138efefe06d181e3948e98c7268dc818633eb06c557bb8e5",
+      "bytes": 262961
+    },
+    {
+      "file": "apps/web-ui/src/assets/icons/knowledge.png",
+      "sha256": "3b7d83e48e9ca6b37b716011689d6608068004c3c38dfd9cce492fc95f0946fe",
+      "bytes": 405782
+    },
+    {
+      "file": "apps/web-ui/src/assets/icons/overview.png",
+      "sha256": "ccd1a6e5040b43d77a2dad0e81100cf0c5aa9c0e13cdf630ec1c6608d09b979a",
+      "bytes": 347592
+    },
+    {
+      "file": "apps/web-ui/src/assets/icons/project.png",
+      "sha256": "7b6cde49dd60a31f014a49b045bcc9a563f98c2f7fb101dbfe29c0fc3b8e5176",
+      "bytes": 234051
+    },
+    {
+      "file": "apps/web-ui/src/assets/icons/work.png",
+      "sha256": "8ad2fb01b4b29d4d6190609b5ac8b44396b6da621a187062dc991e053bf2c33c",
+      "bytes": 361270
+    },
+    {
+      "file": "apps/web-ui/src/assets/delivery/activity.png",
+      "sha256": "8f58755eef24a7e38e932600e2fae3a5b9e81ca1cd4c470a181bfa7969e2aa07",
+      "bytes": 2957
+    },
+    {
+      "file": "apps/web-ui/src/assets/delivery/agent.png",
+      "sha256": "8622cb38c94b28b5c84d6809804979a4b47795acd31c5e89d3ba53c2f9c7199f",
+      "bytes": 7015
+    },
+    {
+      "file": "apps/web-ui/src/assets/delivery/architecture.png",
+      "sha256": "ab4877e8154c5a544423248ba27a5a0b380ed63411d6e770a62f422379b1939b",
+      "bytes": 5989
+    },
+    {
+      "file": "apps/web-ui/src/assets/delivery/connection.png",
+      "sha256": "1ebd5962ccbb8ee2e31f77c2986410100e644d063c0680686e06e08a22a324fb",
+      "bytes": 5072
+    },
+    {
+      "file": "apps/web-ui/src/assets/delivery/knowledge.png",
+      "sha256": "373949ddc159d614007b5b90176f09bcffb368423127e14b31fc4f0548185286",
+      "bytes": 7185
+    },
+    {
+      "file": "apps/web-ui/src/assets/delivery/lmti-mark.png",
+      "sha256": "870f8a534108a0cff0fd2b88feedce8ee158a114d1c87bdf8967b9b2a69a4f95",
+      "bytes": 14044
+    },
+    {
+      "file": "apps/web-ui/src/assets/delivery/overview.png",
+      "sha256": "427930198e7d1e1a624d0e92a5ae9850142316f09c4c4c07cbf467321a3fa82f",
+      "bytes": 6499
+    },
+    {
+      "file": "apps/web-ui/src/assets/delivery/project.png",
+      "sha256": "cd0d7cafd2bfb631ad8b2269e763e7ce0fb2e53eed73a2d3192df7155936cc52",
+      "bytes": 4001
+    },
+    {
+      "file": "apps/web-ui/src/assets/delivery/work.png",
+      "sha256": "7e4f4e60ef42c5947e6845376b0ebe7a30636ba78033bdc2a10add8424d2c9e1",
+      "bytes": 6723
+    }
+  ]
+}

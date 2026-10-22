@@ -199,7 +199,7 @@ function runGit(cwd: string, args: string[]): string {
 async function createPublishGitFixture(publicRepo?: string): Promise<{ worktree: string; remote: string; publicRepo: string }> {
   const root = await mkdtemp(path.join(os.tmpdir(), "lmti-publish-"));
   const worktree = path.join(root, "worktree");
-  const remote = publicRepo ?? "https://github.com/vuthuanphat6-byte/lmti-atlas.git";
+  const remote = publicRepo ?? "https://github.com/vuthuanphat/lmti-atlas.git";
 
   runGit(root, ["init", worktree]);
   runGit(worktree, ["config", "user.email", "lmti-test@example.com"]);
@@ -301,6 +301,9 @@ describe("LMTI CLI commands", () => {
     const agents = await readFile(path.join(cwd, "AGENTS.md"), "utf8");
     expect(agents).toContain("## LMTI - Atlas Integration");
     expect(agents.match(/## LMTI - Atlas Integration/g)).toHaveLength(1);
+    expect(agents).toContain("lmti publish preflight");
+    expect(agents).toContain("Never move/import .lmti into host application runtime");
+    expect(agents).toContain("When developing LMTI itself");
   });
 
   it("attach codex preserves existing AGENTS.md content", async () => {
@@ -650,7 +653,7 @@ describe("LMTI CLI commands", () => {
   }, 15_000);
 
   it("publish preflight blocks a wrong origin remote", async () => {
-    const publicRepo = "https://github.com/vuthuanphat6-byte/lmti-atlas.git";
+    const publicRepo = "https://github.com/vuthuanphat/lmti-atlas.git";
     const { worktree } = await createPublishGitFixture(publicRepo);
     runGit(worktree, ["remote", "set-url", "origin", "https://github.com/vuthuanphat6-byte/atlas.git"]);
 
@@ -662,7 +665,7 @@ describe("LMTI CLI commands", () => {
   }, 15_000);
 
   it("publish preflight JSON errors include stable error codes", async () => {
-    const publicRepo = "https://github.com/vuthuanphat6-byte/lmti-atlas.git";
+    const publicRepo = "https://github.com/vuthuanphat/lmti-atlas.git";
     const { worktree } = await createPublishGitFixture(publicRepo);
     runGit(worktree, ["remote", "set-url", "origin", "https://github.com/vuthuanphat6-byte/atlas.git"]);
 
@@ -674,7 +677,7 @@ describe("LMTI CLI commands", () => {
   }, 15_000);
 
   it("publish check blocked results return exit code 2", async () => {
-    const publicRepo = "https://github.com/vuthuanphat6-byte/lmti-atlas.git";
+    const publicRepo = "https://github.com/vuthuanphat/lmti-atlas.git";
     const { worktree } = await createPublishGitFixture(publicRepo);
     runGit(worktree, ["remote", "set-url", "origin", "https://github.com/vuthuanphat6-byte/atlas.git"]);
 

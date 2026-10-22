@@ -10,10 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/config"
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/secrets"
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/storage"
-	"github.com/vuthuanphat6-byte/lmti-atlas/pkg/contract"
+	"github.com/vuthuanphat/lmti-atlas/internal/config"
+	"github.com/vuthuanphat/lmti-atlas/internal/secrets"
+	"github.com/vuthuanphat/lmti-atlas/pkg/contract"
 )
 
 type FromJSONOptions struct {
@@ -31,12 +30,17 @@ type FromJSONReport struct {
 
 func FromJSON(ctx context.Context, root string, cfg config.Config, options FromJSONOptions) (FromJSONReport, []contract.BoundaryMessage, []contract.BoundaryMessage) {
 	report := FromJSONReport{DryRun: options.DryRun}
+	// The generic mapper cannot preserve TS sensitivity/prompt policy, project
+	// scope, provenance and lesson lifecycle. Keep this experimental surface as
+	// inventory only until a lossless migration contract is verified.
+	if !options.DryRun {
+		return report, nil, []contract.BoundaryMessage{{Code: contract.ErrorMigrationRequired, Message: "LEGACY_MEMORY_MIGRATION_BLOCKED: lossless policy, provenance and lifecycle mapping is required; use --dry-run and keep the original stores."}}
+	}
 	candidates, err := findCandidates(root, options.Path)
 	if err != nil {
 		return report, nil, []contract.BoundaryMessage{{Code: contract.ErrorMigrationRequired, Message: err.Error()}}
 	}
 	report.CandidateFiles = candidates
-	store := storage.NewSQLiteStore(cfg.Storage.Path)
 	for _, candidate := range candidates {
 		content, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(candidate)))
 		if err != nil {
@@ -52,20 +56,9 @@ func FromJSON(ctx context.Context, root string, cfg config.Config, options FromJ
 			report.SkippedFiles = append(report.SkippedFiles, candidate)
 			continue
 		}
-		if options.DryRun {
-			report.ImportedRecords += len(records)
-			continue
-		}
-		for _, record := range records {
-			if record.Privacy == contract.PrivacySecret || record.Privacy == contract.PrivacyDoNotPrompt || secrets.ContainsSecretLikeContent(record.Content) {
-				report.BlockedFiles = append(report.BlockedFiles, candidate)
-				continue
-			}
-			if err := store.InsertMemory(ctx, root, record); err != nil {
-				return report, nil, []contract.BoundaryMessage{{Code: contract.ErrorStorageUnavailable, Message: err.Error()}}
-			}
-			report.ImportedRecords++
-		}
+		// Retain the historical report field for compatibility: in dry-run this
+		// counts candidates, never persisted records.
+		report.ImportedRecords += len(records)
 	}
 	var warnings []contract.BoundaryMessage
 	if len(report.BlockedFiles) > 0 {
@@ -203,4 +196,3 @@ func stringArrayValue(object map[string]any, key string) []string {
 	}
 	return items
 }
-

@@ -11,6 +11,42 @@ node packages/cli/dist/index.js --help
 If the package is linked or installed locally, use the equivalent `lmti ...`
 commands.
 
+Use **Node.js 24 or later** for this CLI. The memory and audit owners require
+`node:sqlite`; a runtime without it is unsupported for these writes. An audit
+writer that cannot load this primitive refuses with
+`AUDIT_RUNTIME_UNSUPPORTED_NODE_SQLITE_REQUIRED` and does not fall back to an
+uncoordinated writer. Reading existing audit evidence does not need this primitive.
+
+## Options and exit status
+
+Options are declared by each command. Boolean switches such as `--json`,
+`--fix`, `--strict` and `--dry-run` do not consume the next argument. Both
+`route --json "publish the repository"` and `route "publish the repository"
+--json` select the same request. Options with values accept `--role developer`
+or `--role=developer`. Use `--` to end option parsing, for example
+`route --json -- "--publish from these notes"`. `memory reinforce --success
+true|false` retains its explicit boolean-value form. Repeated declared options
+retain the existing last-value precedence.
+
+Unknown options, missing values, invalid boolean/numeric values and extra positional
+arguments on fixed-arity commands are now usage errors, before the owner is
+called. This intentionally replaces silent acceptance of misspelled options.
+Flags belong to their documented command; `--json` is not a global switch for
+surfaces that already print their own JSON protocol.
+
+The friendly CLI status codes remain `0` pass, `1` warning, `2` blocked,
+`3` command error and `4` invalid usage. **`doctor` and `check` now return the
+same nonzero status for a failing report in both text and JSON**, including
+`--security`. Scripts that previously relied on the incorrect text-mode zero
+status must handle this result. Friendly JSON errors keep `lmti.cli.v1`, with
+`INVALID_USAGE` or `COMMAND_FAILED`; private MCP/desktop/Impact protocols retain
+their own formats and exit rules.
+
+The TypeScript entry retains the public command-function/type exports.
+Dispatch is separate from the command families under `packages/cli/src/commands`,
+with shared typed parsing in `arguments.ts` and presentation/status helpers in
+`output.ts`. Commands continue to call their existing storage owners.
+
 `lmti` is the primary CLI command. If an `atlas` bin is present, treat it as a
 legacy/internal local-alpha alias. Documentation should use `lmti` as the
 public command name.
@@ -25,12 +61,20 @@ public command name.
 - Planned names are listed at the end of this file. They should not be shown as
   working aliases until the CLI implements them.
 
-## Core Commands
+The [master plan](LMTI_MASTER_PLAN.md) coordinates the Studio C++/Qt/Python
+direction. This page documents the project-memory CLI; see the
+[Studio guide](topology-studio.md) for native topology CLI and Python MCP.
+The [support map](component-support.md) distinguishes both domains.
 
-The Go core CLI is being introduced alongside the existing TypeScript
-local-alpha CLI. Treat these commands as experimental Go-core surfaces until
-the Go binary is linked as `lmti` and parity tests are part of the normal
-verification path. Until then, run Go-core commands with:
+`memory migrate-json --dry-run` inventories legacy TS JSON without writes.
+Actual TS and Go legacy import writes are blocked until policy/provenance/lifecycle parity is proven.
+Ordinary memory reads/writes, lessons and compatibility JSON commands continue.
+
+## Experimental Go compatibility commands
+
+The Go CLI remains experimental memory compatibility alongside TypeScript.
+Its SQLite path uses a Node bridge and a schema distinct from TS project
+memory and native topology. It is not the replacement topology core. Run with:
 
 ```bash
 go run ./cmd/lmti <command>

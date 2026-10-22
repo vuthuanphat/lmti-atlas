@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/thoth"
+	"github.com/vuthuanphat/lmti-atlas/internal/thoth"
 )
 
 func runThoth(args []string, stdout io.Writer, stderr io.Writer) int {

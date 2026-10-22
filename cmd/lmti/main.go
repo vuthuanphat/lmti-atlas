@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/app"
+	"github.com/vuthuanphat/lmti-atlas/internal/app"
 )
 
 func main() {

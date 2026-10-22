@@ -6,7 +6,9 @@
 >
 > **LMTI is not a complete Artificial Mind or a full AI framework.**
 >
-> LMTI is a practical local memory, safety, and skill-routing layer for AI coding agents.
+> LMTI organizes project knowledge and system architecture for AI agents.
+> Memory, context, privacy, verification and reviewed lessons are its foundations.
+> Architecture Studio applies them to a separate topology/IoT domain.
 >
 > Your responsibility is not simply to implement features.
 > Your responsibility is to preserve the reliability, privacy, and cognitive direction of LMTI.
@@ -36,7 +38,9 @@ partner, not just as a feature implementer.
 
 # 1. Mission
 
-LMTI exists to give AI coding agents safe, reusable project memory.
+LMTI exists to give AI agents safe, reusable understanding of projects and
+system architecture. Project memory and Architecture Studio serve separate
+domains with shared safety principles.
 
 Language models already know how to generate language, but they do not reliably
 preserve local project knowledge, privacy constraints, or verification state.
@@ -78,6 +82,9 @@ Local Alpha has one objective:
 Do not inflate LMTI into a full AI framework.
 
 Stabilize memory, context routing, privacy, verification, and lesson capture.
+
+Develop the accepted local Architecture Studio slice through typed C++ core,
+Qt desktop/SQLite adapters and a scoped Python Agent boundary.
 ```
 
 During local-alpha work, do not create production framework claims or deeply
@@ -85,6 +92,12 @@ refactor runtime logic unless the task explicitly asks for it.
 
 Read the current README, naming clarification, host-project boundary, and RFCs
 first.
+
+`docs/LMTI_MASTER_PLAN.md` coordinates current work. The accepted native topology
+ADR defines the local MVP boundary; `docs/topology-studio.md` documents its
+implemented scope. Use `docs/component-support.md` for ownership and support.
+Earlier roadmaps and research specs are historical unless explicitly adopted.
+Keep existing TS memory commands and experimental Go compatibility intact.
 
 For every proposal:
 
@@ -291,7 +304,7 @@ Before making changes, Codex should:
 10. Do not bypass LMTI privacy gates, do not widen permissions to make a task pass, and never print secrets.
 11. Do not store raw chat, raw secrets, raw customer data, or unverified hallucinations as memory.
 12. Before publishing, pushing to a public repo, opening a PR, creating a release, or changing a Git remote, always run `lmti publish preflight`. If it returns ERROR/BLOCKED, stop immediately and ask the user to resolve or approve a safe recovery path.
-13. For the current architecture phase, treat Go as the future core runtime, SQLite as durable memory storage, TOML as human config, and JSON only as the CLI/API boundary. Do not introduce Protobuf, gRPC, or direct agent storage reads in this phase.
+13. The user-approved IoT architecture phase uses a typed C++ domain core, a C++/Qt Widgets desktop, SQLite topology storage, and a Python Agent SDK/MCP boundary. Keep existing TypeScript/Go memory commands compatible; Go remains the legacy experimental memory path. JSON is only a CLI/API/proposal boundary, not the domain model or durable topology format. Do not introduce Protobuf, gRPC, direct Agent storage access, arbitrary shell tools, or device execution in the local topology MVP. See docs/topology-studio.md and docs/adr/2026-10-11-native-topology.md.
 
 Suggested local command:
 

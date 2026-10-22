@@ -1,0 +1,63 @@
+{
+  "name": "LMTI",
+  "type": "independent_agent_layer",
+  "role": "project_intelligence_memory_layer",
+  "public_product_name": "LMTI",
+  "full_meaning": "Long Memory / Project Intelligence Layer",
+  "author": "Edgar Vu",
+  "organization": "Cyno Software",
+  "project": "LMTI",
+  "project_full_name": "LMTI — Long Memory / Project Intelligence Layer",
+  "publish_repository": "https://github.com/vuthuanphat/lmti-atlas",
+  "legacy_internal_codenames": [
+    "ATLAS"
+  ],
+  "naming_note": "LMTI is the public product. ATLAS is a legacy/internal codename and Project Atlas artifact name. @atlas/* packages are internal implementation packages of LMTI during local alpha. The publish repository is vuthuanphat/lmti-atlas, not a private or legacy /atlas path.",
+  "ownership_note": "Created and maintained by Edgar Vu — Cyno Software. LMTI is an independent AI-agent memory/context layer, not an application module.",
+  "publish_safety_gate": {
+    "command": "lmti publish preflight",
+    "required_before": [
+      "push_to_public_repo",
+      "open_pull_request",
+      "create_release",
+      "publish_open_source_artifact",
+      "change_git_remote"
+    ],
+    "blocked_exit_code": 2,
+    "boundary_note": "If publish preflight returns ERROR/BLOCKED, the agent must stop and ask for a safe recovery path."
+  },
+  "description": "LMTI is an independent layer attached to this repository to help AI agents understand project context, retrieve memory, index knowledge, capture lessons, and enforce safe operating boundaries. It is not a business module, runtime module, backend service, frontend feature, or product domain component.",
+  "runtime_boundary": {
+    "part_of_application_runtime": false,
+    "part_of_business_domain": false,
+    "part_of_backend_modules": false,
+    "part_of_frontend_modules": false,
+    "safe_to_ignore_for_app_build": true,
+    "safe_to_ignore_for_product_refactor": true
+  },
+  "agent_rules": [
+    "Do not treat LMTI as a project feature module.",
+    "Do not move LMTI into src/modules, src/features, app, pages, components, services, or controllers.",
+    "Do not import LMTI into production runtime unless explicitly instructed.",
+    "Use LMTI only as an agent-support layer for context, memory, indexing, lessons, and guardrails.",
+    "Before modifying LMTI internals, verify the task explicitly asks for LMTI changes.",
+    "When working on the main project, do not refactor LMTI unless required."
+  ],
+  "allowed_interactions": [
+    "read project context",
+    "search memory",
+    "retrieve lessons",
+    "compile project index",
+    "store safe lessons after task completion",
+    "enforce privacy and boundary rules"
+  ],
+  "forbidden_interactions": [
+    "business logic execution",
+    "production request handling",
+    "database mutation for app domain",
+    "auth flow replacement",
+    "route registration",
+    "UI feature ownership",
+    "deployment pipeline ownership unless explicitly configured"
+  ]
+}

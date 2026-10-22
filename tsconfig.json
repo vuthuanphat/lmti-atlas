@@ -5,6 +5,7 @@
   },
   "files": [],
   "references": [
+    { "path": "packages/drive" },
     { "path": "packages/types" },
     { "path": "packages/graph" },
     { "path": "packages/privacy" },
@@ -18,11 +19,11 @@
     { "path": "packages/compiler" },
     { "path": "packages/kernel" },
     { "path": "packages/mcp" },
-    { "path": "packages/reasoning" },
     { "path": "packages/cognition" },
     { "path": "packages/world-model" },
     { "path": "packages/runtime" },
     { "path": "packages/cli" },
+    { "path": "packages/impact" },
     { "path": "apps/playground" },
     { "path": "apps/codex-assistant" }
   ],

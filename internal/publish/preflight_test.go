@@ -17,8 +17,8 @@ func TestBranchAllowed(t *testing.T) {
 }
 
 func TestNormalizeRemote(t *testing.T) {
-	got := normalizeRemote("git@github.com:vuthuanphat6-byte/lmti-atlas.git")
-	want := "https://github.com/vuthuanphat6-byte/lmti-atlas"
+	got := normalizeRemote("git@github.com:vuthuanphat/lmti-atlas.git")
+	want := "https://github.com/vuthuanphat/lmti-atlas"
 	if got != want {
 		t.Fatalf("got %s want %s", got, want)
 	}

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>LMTI — MCP & Agents · Design preview</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/prototype.css">
+  <script type="module" src="/prototype.js"></script>
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <aside class="sidebar" aria-label="Workspace">
+    <a class="brand" href="/" aria-label="LMTI home"><span class="brand-mark">L</span>LMTI <span class="alpha">local</span></a>
+    <label class="eyebrow" for="project" data-i18n="project">PROJECT</label>
+    <select id="project" aria-label="Choose project"></select>
+    <p id="project-note" class="sidebar-note"></p>
+    <nav aria-label="Project navigation">
+      <button class="nav active" data-view="mcp"><span aria-hidden="true">⌘</span><span data-i18n="mcp">MCP & Agents</span></button>
+      <button class="nav" data-view="structure"><span aria-hidden="true">▧</span><span data-i18n="structure">Project structure</span></button>
+      <button class="nav" data-view="activity"><span aria-hidden="true">↺</span><span data-i18n="activity">Activity & review</span></button>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="local-label"><span class="dot"></span><span data-i18n="local">On this computer</span></div>
+      <p data-i18n="boundary">Project context, shared with your agents.</p>
+      <button id="language" class="text-button" aria-label="Switch to Vietnamese">Tiếng Việt</button>
+    </div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar">
+      <span id="breadcrumb"></span>
+      <div class="topbar-actions"><span class="preview-badge" data-i18n="design">Design preview</span><button id="scenarios" class="text-button" data-i18n="tryFlow">Try a flow</button></div>
+    </header>
+    <main id="content" tabindex="-1">
+      <section id="mcp-view">
+        <div class="page-heading"><div><p class="eyebrow" data-i18n="workspace">PROJECT WORKSPACE</p><h1 data-i18n="mcp">MCP & Agents</h1><p class="subtitle" data-i18n="subtitle">One set of connections. Ready for your agents.</p></div><button id="add-connection" class="primary" data-i18n="add">+ Add connection</button></div>
+        <div id="notice" class="notice" role="status" hidden></div>
+        <section class="section" aria-labelledby="connections-title">
+          <div class="section-heading"><h2 id="connections-title" data-i18n="connections">Connections</h2><span id="revision" class="muted"></span></div>
+          <div id="connections" class="connection-list"></div>
+          <p class="section-footnote" data-i18n="connectionsHelp">Use your existing MCP endpoints. Sign in separately in each agent.</p>
+        </section>
+        <section class="section" aria-labelledby="agents-title">
+          <div class="section-heading"><h2 id="agents-title" data-i18n="useWith">Use with your agents</h2><span class="muted" data-i18n="projectOnly">Project configuration</span></div>
+          <div id="clients" class="client-grid"></div>
+        </section>
+        <details class="help"><summary data-i18n="how">How these connections work</summary><p data-i18n="howText">LMTI prepares the project configuration. Codex and Cursor own sign-in and tool execution. A saved configuration does not mean an endpoint or client has been verified.</p></details>
+      </section>
+      <section id="structure-view" hidden></section>
+      <section id="activity-view" hidden></section>
+    </main>
+    <footer class="preview-footer"><span class="preview-dot"></span><span data-i18n="fixture">Synthetic data · Interactions stay in this tab · No files or accounts are changed</span></footer>
+  </div>
+  <dialog id="editor" aria-labelledby="editor-title">
+    <form id="connection-form">
+      <div class="dialog-heading"><div><p class="eyebrow" data-i18n="connection">CONNECTION</p><h2 id="editor-title"></h2></div><button type="button" class="close" data-close="editor" aria-label="Close">×</button></div>
+      <p class="muted" data-i18n="editorHelp">An existing MCP connection for this project.</p>
+      <label for="provider" data-i18n="type">Connection type</label><select id="provider"><option value="local">LMTI project context</option><option value="remote">Remote MCP</option><option value="cloudflare">Cloudflare MCP endpoint</option><option value="private">Private HTTPS endpoint / Tailscale</option></select>
+      <label for="connection-name" data-i18n="name">Name</label><input id="connection-name" required maxlength="80" autocomplete="off">
+      <div id="endpoint-field"><label for="endpoint" data-i18n="endpoint">HTTPS endpoint</label><input id="endpoint" type="url" maxlength="512" placeholder="https://mcp.example.com/mcp" autocomplete="off" spellcheck="false"><p class="field-help" data-i18n="endpointHelp">Address only. Authentication happens in your agent.</p></div>
+      <div id="local-description" class="soft-panel" data-i18n="localHelp">Provides scoped project context through the existing LMTI MCP adapter.</div>
+      <details><summary data-i18n="advanced">Advanced</summary><label for="server-key" data-i18n="key">Server key</label><input id="server-key" required maxlength="48" pattern="[a-z][a-z0-9_-]*" autocomplete="off" spellcheck="false"><label for="site" data-i18n="site">Site scope</label><input id="site" maxlength="80" autocomplete="off"></details>
+      <p id="form-error" class="error" role="alert" hidden></p>
+      <div class="dialog-footer"><button type="button" data-close="editor" data-i18n="cancel">Cancel</button><button class="primary" type="submit" data-i18n="save">Save connection</button></div>
+    </form>
+  </dialog>
+  <dialog id="client-dialog" class="wide" aria-labelledby="client-title">
+    <div class="dialog-heading"><div><p class="eyebrow" data-i18n="projectOnly">Project configuration</p><h2 id="client-title"></h2></div><button class="close" data-close="client-dialog" aria-label="Close">×</button></div>
+    <div id="client-dialog-body"></div><div id="client-dialog-actions" class="dialog-footer"></div>
+  </dialog>
+  <dialog id="flow-dialog" aria-labelledby="flow-title">
+    <div class="dialog-heading"><h2 id="flow-title" data-i18n="tryFlow">Try a flow</h2><button class="close" data-close="flow-dialog" aria-label="Close">×</button></div>
+    <p class="muted" data-i18n="scenarioHelp">Start a synthetic scenario. This resets the sample projects in this tab.</p>
+    <div class="flow-list"><button data-scenario="new"><strong data-i18n="flowNew">1. Set up a new project</strong><span data-i18n="flowNewHelp">Add a connection, review the changes, set up both agents.</span></button><button data-scenario="update"><strong data-i18n="flowUpdate">2. Update an existing configuration</strong><span data-i18n="flowUpdateHelp">A new profile revision needs to be applied. Try a stale preview.</span></button><button data-scenario="recovery"><strong data-i18n="flowRecovery">3. Recover an interrupted update</strong><span data-i18n="flowRecoveryHelp">Restore, then resolve missing authentication or an offline endpoint.</span></button></div>
+  </dialog>
+  <div id="announcer" class="sr-only" role="status" aria-live="polite"></div>
+</body>
+</html>

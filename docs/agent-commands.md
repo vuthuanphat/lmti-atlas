@@ -2,6 +2,10 @@
 
 > Status: Local-alpha documentation
 
+This page covers project-memory CLI commands. Native topology context/proposals
+and Python MCP use the separate contracts in the [Studio guide](topology-studio.md)
+and [JSON boundary map](json-boundary.md); see the [support map](component-support.md).
+
 AI agents should use LMTI through stable JSON commands. Agents must not parse
 human tables, read raw SQLite, or read raw memory files.
 
@@ -34,7 +38,9 @@ human tables, read raw SQLite, or read raw memory files.
 
 ## JSON Contract
 
-Every agent command should use the `lmti.cli.v1` envelope:
+The friendly project-memory commands on this page use the `lmti.cli.v1` envelope;
+advanced diagnostics retain their documented outputs. Topology/MCP messages are
+not wrapped in this envelope:
 
 ```json
 {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/secrets"
-	"github.com/vuthuanphat6-byte/lmti-atlas/pkg/contract"
+	"github.com/vuthuanphat/lmti-atlas/internal/secrets"
+	"github.com/vuthuanphat/lmti-atlas/pkg/contract"
 )
 
 type DefaultGate struct{}

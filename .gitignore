@@ -10,6 +10,10 @@
 *.cer
 *.token
 secrets/
+!internal/secrets/
+internal/secrets/*
+!internal/secrets/secrets.go
+!internal/secrets/secrets_test.go
 credentials/
 
 # Local runtime data
@@ -17,6 +21,11 @@ credentials/
 .atlas/
 .agents/
 .codex/
+.lmti-client/
+.lmti-web-broker.lock
+.lmti-web-broker.json
+.lmti-web-broker.*.tmp
+.cursor/mcp.json
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -49,6 +58,7 @@ coverage/
 node_modules/
 .pnpm-store/
 .venv/
+.tools/
 venv/
 __pycache__/
 
@@ -56,7 +66,12 @@ __pycache__/
 dist/
 build/
 out/
+.playwright-cli/
+output/playwright/
 *.tsbuildinfo
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
 
 # OS and editor files
 .DS_Store

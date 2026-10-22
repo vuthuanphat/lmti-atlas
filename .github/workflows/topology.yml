@@ -1,0 +1,93 @@
+name: Native topology
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  native-and-python:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Build TypeScript desktop bridge
+        shell: pwsh
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts --ignore-scripts
+          if ($LASTEXITCODE) { throw 'Workspace dependency installation failed.' }
+          pnpm build
+          if ($LASTEXITCODE) { throw 'TypeScript build failed.' }
+      - name: Install verified Qt archives
+        shell: pwsh
+        run: |
+          python -m pip install --only-binary=:all: --index-url https://pypi.org/simple aqtinstall==3.3.0
+          python scripts/qt_installer.py install-qt windows desktop 6.12.0 win64_msvc2022_64 --outputdir .tools/qt --archives qtbase --base https://download.qt.io
+          if ($LASTEXITCODE) { throw 'Qt SDK installation failed.' }
+      - name: Build and package
+        shell: pwsh
+        run: ./scripts/build-studio.ps1
+      - name: Build and verify local web package
+        shell: pwsh
+        run: |
+          ./scripts/package-local-web.ps1 -NativePackage build/studio -AdminPackage build/studio -OutputDirectory build/studio-web-ci
+          ./scripts/verify-local-web.ps1 -PackageDirectory build/studio-web-ci -NativeBuildDirectory build/native -QtRoot .tools/qt/6.12.0/msvc2022_64
+      - name: Native and Python integration tests
+        shell: pwsh
+        run: |
+          $env:PATH = (Join-Path $PWD '.tools/qt/6.12.0/msvc2022_64/bin') + ';' + $env:PATH
+          $env:QT_PLUGIN_PATH = Join-Path $PWD '.tools/qt/6.12.0/msvc2022_64/plugins'
+          $env:QT_QPA_FONTDIR = 'C:\Windows\Fonts'
+          # The hardened native child uses only its package runtime. Mirror the
+          # installed bin/ + plugins/ layout for the CTest executable directory.
+          Get-ChildItem -LiteralPath build/studio/bin | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination build/native/bin/Release -Recurse -Force
+          }
+          Copy-Item -LiteralPath build/studio/plugins -Destination build/native/bin -Recurse -Force
+          $env:LMTI_STUDIO_TEST_CLI = Join-Path $PWD 'packages/cli/dist/index.js'
+          New-Item -ItemType Directory -Force -Path build/ts-native-runtime | Out-Null
+          Copy-Item -LiteralPath build/native/bin/Release -Destination build/ts-native-runtime/bin -Recurse -Force
+          Copy-Item -LiteralPath build/studio/plugins -Destination build/ts-native-runtime/plugins -Recurse -Force
+          $env:LMTI_MAPPING_CURRENT_NATIVE_RUNTIME = Join-Path $PWD 'build/ts-native-runtime'
+          pnpm test
+          if ($LASTEXITCODE) { throw 'Windows TypeScript tests failed.' }
+          ctest --test-dir build/native -C Release --output-on-failure
+          if ($LASTEXITCODE) { throw 'Native tests failed.' }
+          $env:PYTHONPATH = Join-Path $PWD 'python/src'
+          $env:LMTI_TOPOLOGY_BINARY = Join-Path $PWD 'build/studio/bin/lmti-topology.exe'
+          $env:LMTI_PROJECT_BINARY = Join-Path $PWD 'build/studio/bin/lmti-project.exe'
+          $env:PYTHONDONTWRITEBYTECODE = '1'
+          $env:LMTI_AGENT_REPO = $PWD.Path
+          $env:LMTI_NODE_BINARY = (Get-Command node -CommandType Application).Source
+          $env:LMTI_KNOWLEDGE_CLI = Join-Path $PWD 'packages/cli/dist/index.js'
+          $env:LMTI_MAPPING_COMPOSITION_PACKAGE = Join-Path $PWD 'build/studio-web-ci'
+          $env:LMTI_MAPPING_COMPOSITION_NATIVE_FIXTURE = Join-Path $PWD 'build/native/bin/Release/lmti-mcp-binding-identity-tests.exe'
+          $env:LMTI_MAPPING_COMPOSITION_NODE = $env:LMTI_NODE_BINARY
+          $env:LMTI_MAPPING_COMPOSITION_PYTHON = (Get-Command python -CommandType Application).Source
+          & (Join-Path $PWD 'build/native/bin/Release/lmti-project-structure-snapshot-tests.exe') --emit-fixtures (Join-Path $PWD 'build/structure-ci-fixtures')
+          if ($LASTEXITCODE) { throw 'Structure integration fixture creation failed.' }
+          $env:LMTI_STRUCTURE_FIXTURE_DIR = Join-Path $PWD 'build/structure-ci-fixtures'
+          $env:LMTI_STRUCTURE_INTEGRATION_CONFIG = Join-Path $PWD 'build/structure-ci-integration.json'
+          @{schema='lmti.agent.integration.v2';projectId='factory-monitor';site='factory-demo';target='external';knowledge=$null;observations=$null;structure=$true} | ConvertTo-Json | Set-Content -LiteralPath $env:LMTI_STRUCTURE_INTEGRATION_CONFIG -Encoding utf8
+          node packages/cli/dist/index.js impact demo --out build/impact-ci-demo
+          if ($LASTEXITCODE) { throw 'Impact integration fixture creation failed.' }
+          $env:LMTI_IMPACT_NODE = (Get-Command node -CommandType Application).Source
+          $env:LMTI_IMPACT_CLI = Join-Path $PWD 'packages/cli/dist/index.js'
+          $env:LMTI_IMPACT_CONFIG = Join-Path $PWD 'build/impact-ci-demo/launcher.json'
+          python -m unittest discover -s python/tests -v
+          if ($LASTEXITCODE) { throw 'Python tests failed.' }

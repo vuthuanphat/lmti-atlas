@@ -20,8 +20,12 @@ docs/cli.md
 docs/development.md
 ```
 
-The current product scope is local-first project memory and verification for AI
-coding agents, with Codex as the first workflow.
+Current direction is coordinated by `docs/LMTI_MASTER_PLAN.md` and the accepted
+`docs/adr/2026-10-11-native-topology.md`. Architecture Studio is the local
+topology/IoT application; project memory, privacy, context, verification and
+reviewed lessons remain foundations. `docs/component-support.md` identifies
+supported and compatibility components. These archived RFCs are not a competing
+implementation backlog.
 
 ## Research Engineer Rule
 

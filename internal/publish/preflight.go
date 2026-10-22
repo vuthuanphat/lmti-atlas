@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/config"
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/gitcheck"
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/secrets"
-	"github.com/vuthuanphat6-byte/lmti-atlas/pkg/contract"
+	"github.com/vuthuanphat/lmti-atlas/internal/config"
+	"github.com/vuthuanphat/lmti-atlas/internal/gitcheck"
+	"github.com/vuthuanphat/lmti-atlas/internal/secrets"
+	"github.com/vuthuanphat/lmti-atlas/pkg/contract"
 )
 
 type Check struct {

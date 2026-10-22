@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/secrets"
+	"github.com/vuthuanphat/lmti-atlas/internal/secrets"
 )
 
 func Validate(root string) ValidationReport {
