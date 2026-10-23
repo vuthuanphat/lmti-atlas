@@ -37,6 +37,9 @@ compatibility, known-limitations and rollback information.
 
 ### Security
 
+- Preserve UTF-8 JSON on Windows PowerShell 5 launcher/doctor pipes; use explicit
+  encoding without changing grants, path validation or owner authority.
+
 - Move Go credential-scanning source to `internal/credentialscan`; remove obsolete
   source-only exceptions for `internal/secrets`. Secret-path rules remain enforced.
 

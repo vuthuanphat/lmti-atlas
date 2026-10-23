@@ -149,14 +149,25 @@ function New-OwnerProcess {
     $taskStart.RedirectStandardInput = $true
     $taskStart.RedirectStandardOutput = $true
     $taskStart.RedirectStandardError = $true
+    $taskStart.StandardOutputEncoding = [Text.UTF8Encoding]::new($false,$true)
+    $taskStart.StandardErrorEncoding = [Text.UTF8Encoding]::new($false,$true)
     $taskStart.EnvironmentVariables.Clear()
     foreach ($taskEnvKey in @('SystemRoot','WINDIR')) { if ([Environment]::GetEnvironmentVariable($taskEnvKey)) { $taskStart.EnvironmentVariables[$taskEnvKey] = [Environment]::GetEnvironmentVariable($taskEnvKey) } }
     [Diagnostics.Process]::Start($taskStart)
 }
+function Send-OwnerJson {
+    param([Diagnostics.Process]$Owner,[string]$Json)
+    # Windows PowerShell 5 has no StandardInputEncoding property. Its default
+    # writer uses the console code page, so use a separate UTF-8 writer and
+    # close that writer (not the unused default writer) to send EOF once.
+    $taskWriter=[IO.StreamWriter]::new($Owner.StandardInput.BaseStream,[Text.UTF8Encoding]::new($false))
+    try { $taskWriter.NewLine="`n"; $taskWriter.WriteLine($Json); $taskWriter.Flush() }
+    finally { $taskWriter.Dispose() }
+}
 if ($ProjectId.Count -eq 0) {
     # Local operator grants are frozen to the currently registered IDs. No Agent grants.
     $taskCatalog = New-OwnerProcess $taskConfig.adminBinary @('--library',$taskConfig.library,'--profiles',$taskConfig.profiles,'--python',$taskPython,'--entry',$taskConfig.agentEntry,'--binary',$taskConfig.projectBinary)
-    $taskCatalog.StandardInput.WriteLine('{"action":"library"}'); $taskCatalog.StandardInput.Close()
+    Send-OwnerJson $taskCatalog '{"action":"library"}'
     $taskCatalogRead = $taskCatalog.StandardOutput.ReadToEndAsync()
     if (-not $taskCatalog.WaitForExit(10000)) { $taskCatalog.Kill(); throw 'Library inspection timed out.' }
     $taskCatalogText = $taskCatalogRead.GetAwaiter().GetResult()
@@ -232,8 +243,7 @@ $taskInput = $taskConfig | ConvertTo-Json -Compress -Depth 8
 # Include the one LF written below. Refuse before starting a broker, not after it.
 if ([Text.Encoding]::UTF8.GetByteCount($taskInput) + 1 -gt 16384) { throw 'Trusted launch configuration exceeds the 16 KiB input limit.' }
 $taskProcess = New-OwnerProcess $taskNode @($taskMain)
-$taskProcess.StandardInput.NewLine = "`n"
-$taskProcess.StandardInput.WriteLine($taskInput); $taskProcess.StandardInput.Close()
+Send-OwnerJson $taskProcess $taskInput
 $taskLaunchRead = $taskProcess.StandardOutput.ReadLineAsync()
 if (-not $taskLaunchRead.Wait(10000)) { throw 'Local API startup timed out. No anonymous access was enabled.' }
 $taskLaunchLine = $taskLaunchRead.GetAwaiter().GetResult()

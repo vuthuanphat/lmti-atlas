@@ -60,7 +60,7 @@ function Invoke-VerificationNode([string]$Name,[string[]]$Arguments) {
         # Hosted runners are disposable. Emit only TAP test names/locations,
         # never assertion payloads, session URLs or raw fixture output.
         Get-Content -LiteralPath $taskLog | Where-Object {
-            $_ -match '^\s*(not ok [0-9]+ - |failureType: |location: )'
+            $_ -match '^\s*(not ok [0-9]+ - |failureType: |location: |# LMTI_LAUNCHER_PROBE \{)'
         } | Select-Object -First 40 | Write-Output
         throw ('Verification failed at '+$Name+'; inspect its bounded synthetic log.')
     }

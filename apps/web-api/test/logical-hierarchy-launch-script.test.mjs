@@ -10,12 +10,12 @@ const powershell=process.env.LMTI_WEB_TEST_POWERSHELL??
 const quote=value=>"'"+value.replaceAll("'","''")+"'";
 
 test('actual launcher refuses missing, duplicate and widened hierarchy authority before opening any configured path',
-  {timeout:30000},()=>{
+  {timeout:30000},t=>{
     assert.equal(process.platform,'win32');
     // The deliberately nonexistent location proves capability validation is
     // performed before path inspection, package execution or broker startup.
     const prefix='& '+quote(launcher)+" -DataDirectory 'C:\\lmti-no-such-controlled-launch-fixture'";
-    for(const [args,message] of [
+    const cases=[
       [" -HierarchyProjectId @('project')",'Hierarchy grants require LogicalHierarchy.'],
       [" -HierarchyInternalProjectId @('project')",'Hierarchy grants require LogicalHierarchy.'],
       [' -LogicalHierarchy','Specify explicit HierarchyProjectId grants.'],
@@ -23,11 +23,23 @@ test('actual launcher refuses missing, duplicate and widened hierarchy authority
       [" -LogicalHierarchy -HierarchyProjectId @('project') -HierarchyInternalProjectId @('other')",
         'Internal hierarchy grants must be within explicit hierarchy project grants.'],
       [" -LogicalHierarchy -HierarchyProjectId @('invalid project')",'A project grant is invalid.']
-    ]) {
-      const script="$ErrorActionPreference='Stop';try { "+prefix+args+
+    ];
+    for(const [index,[args,message]] of cases.entries()) {
+      // First-use module progress is not a domain response. Suppress only that
+      // noninteractive noise; exact refusal, exit status and empty stdout stay required.
+      const script="$ErrorActionPreference='Stop';$ProgressPreference='SilentlyContinue';try { "+prefix+args+
         " } catch { [Console]::Error.Write($_.Exception.Message);exit 7 };exit 9";
       const run=spawnSync(powershell,['-NoProfile','-NonInteractive','-Command',script],
         {encoding:'utf8',timeout:5000,windowsHide:true,maxBuffer:8192});
+      if(run.status!==7||run.stderr?.trim()!==message||run.stdout!==''){
+        const error=run.error?.code;
+        const diagnostic={case:index+1,status:run.status,signal:run.signal,
+          spawnError:error===undefined?null:['ETIMEDOUT','ENOENT','EACCES','EPERM'].includes(error)?error:'OTHER',
+          stdoutBytes:Buffer.byteLength(run.stdout??''),stderrBytes:Buffer.byteLength(run.stderr??''),
+          stderrCategory:run.stderr?.trim()===message?'expected_refusal':/CLIXML|Preparing modules for first use/i.test(run.stderr??'')?'powershell_progress':
+            /ExecutionPolicy|PSSecurityException|running scripts is disabled|not digitally signed/i.test(run.stderr??'')?'execution_policy':'other'};
+        t.diagnostic('LMTI_LAUNCHER_PROBE '+JSON.stringify(diagnostic));
+      }
       assert.equal(run.status,7,'The launcher must refuse before starting owners.');
       assert.equal(run.stderr.trim(),message);
       assert.equal(run.stdout,'');

@@ -65,6 +65,9 @@ cho kiểm tra startup, không cấp phiên cho một tab mở thủ công. Serv
 Service tự đóng khi không còn phiên/mã khởi động hợp lệ hoặc thao tác ghi đang
 chạy, kiểm tra mỗi 30 giây. Đóng tab không hủy thao tác ghi đã được nhận.
 
+Launcher và doctor dùng pipe UTF-8 tường minh, kể cả Windows PowerShell 5,
+để giữ nguyên tên/đường dẫn tiếng Việt. Kiểm tra này không cấp phiên ẩn danh.
+
 ## Luồng chính
 
 1. Chọn dự án, mở **Agent** để thêm/sửa/xóa kết nối. Local LMTI cần site đã có trong topology.

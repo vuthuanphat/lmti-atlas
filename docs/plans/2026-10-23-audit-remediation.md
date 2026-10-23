@@ -56,3 +56,9 @@ writer lease, original physical provenance and native CAS. A fresh library
 bootstraps schema 1; further binding mutations require the reviewed upgrade.
 Changing the database path for an existing ID is deliberately not a browser
 “locate” shortcut. Source data is preserved and current-session access never expands.
+
+Follow-up: actual Windows PowerShell 5 startup revealed Unicode JSON corruption.
+Dedicated UTF-8 pipes and a real-helper regression cover launcher/doctor input
+and output; packaged startup uses Vietnamese grants and Unicode directories.
+Hosted hierarchy-probe failures are retained in history; bounded diagnostics and
+noninteractive progress suppression preserve exact refusal assertions and guards.
