@@ -1,5 +1,11 @@
 # Project MCP setup
 
+> **Scope update 2026-10-23:** Qt desktop has been removed. Desktop screens,
+> screenshots and launcher instructions below are historical and no longer runnable.
+> Use the [React + Vite workspace](local-web.md) and [headless build](release-build.md).
+> Standalone CLI/SDK owners retain their documented boundaries; former Qt-only
+> features are not automatically available in the browser UI.
+
 Status: local-alpha implementation of the owner-selected CP-01 workflow.
 The [master plan](LMTI_MASTER_PLAN.md) sets priority; the
 [profile ADR](adr/2026-10-13-project-mcp-profile.md) defines ownership.

@@ -23,7 +23,6 @@
     "web:build": "corepack pnpm web:api:build && corepack pnpm --filter @atlas/web-ui build",
     "web:api:build": "tsc -p apps/web-api/tsconfig.json",
     "web:api:test": "node --test apps/web-api/test/*.test.mjs",
-    "web:qt:smoke": "node scripts/web-qt-interop-smoke.mjs",
     "web:baseline": "node scripts/web-local-baseline.mjs",
     "build": "tsc -b packages/types packages/graph packages/privacy packages/frameworks packages/migration packages/memory packages/security packages/tools packages/agents packages/context packages/compiler packages/kernel packages/mcp packages/cognition packages/world-model packages/runtime packages/impact packages/drive packages/cli apps/playground apps/codex-assistant",
     "clean": "tsc -b --clean packages/types packages/graph packages/privacy packages/frameworks packages/migration packages/memory packages/security packages/tools packages/agents packages/context packages/compiler packages/kernel packages/mcp packages/cognition packages/world-model packages/runtime packages/impact packages/drive packages/cli apps/playground apps/codex-assistant",

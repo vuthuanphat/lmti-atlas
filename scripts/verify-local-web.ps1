@@ -1,7 +1,6 @@
 param(
-    [string]$PackageDirectory='build/studio-web03-projection-20261014',
-    [string]$NativeBuildDirectory='build/native-mcp-20261013',
-    [string]$QtRoot='.tools/qt/6.12.0/msvc2022_64'
+    [string]$PackageDirectory='build/lmti-v0.2.0-alpha.1-windows-x64',
+    [string]$NativeBuildDirectory='build/native'
 )
 $ErrorActionPreference='Stop'
 $taskRoot=Split-Path -Parent $PSScriptRoot
@@ -16,14 +15,11 @@ function Resolve-LocalVerificationPath([string]$Location) {
 }
 $taskPackage=Resolve-LocalVerificationPath $PackageDirectory
 $taskNative=Resolve-LocalVerificationPath $NativeBuildDirectory
-$taskQt=Resolve-LocalVerificationPath $QtRoot
 $taskNode=Resolve-LocalVerificationPath ((Get-Command node -CommandType Application|Select-Object -First 1).Source)
 $taskPython=Resolve-LocalVerificationPath ((Get-Command python -CommandType Application|Select-Object -First 1).Source)
 $taskProducer=Resolve-LocalVerificationPath (Join-Path $taskNative 'bin/Release/lmti-mcp-profile-tests.exe')
-$taskProbe=Resolve-LocalVerificationPath (Join-Path $taskNative 'bin/Release/lmti-qt-web-probe.exe')
 $taskBindingProducer=Resolve-LocalVerificationPath (Join-Path $taskNative 'bin/Release/lmti-mcp-binding-identity-tests.exe')
 $taskWriteAdmin=Resolve-LocalVerificationPath (Join-Path $taskNative 'bin/Release/lmti-project-operation-write-test-admin.exe')
-$taskOffscreen=Resolve-LocalVerificationPath (Join-Path $taskQt 'plugins/platforms/qoffscreen.dll')
 $taskBuildPrefix=[IO.Path]::GetFullPath((Join-Path $taskRoot 'build'))+[IO.Path]::DirectorySeparatorChar
 foreach($taskLocation in @($taskPackage,$taskNative)) { if(-not $taskLocation.StartsWith($taskBuildPrefix,[StringComparison]::OrdinalIgnoreCase)) { throw 'Use synthetic build/package directories inside repository build/.' } }
 $taskEvidence=Join-Path $taskRoot ('build/web-verification-'+[Guid]::NewGuid().ToString('N'))
@@ -35,7 +31,7 @@ $taskEnvironment=@{
     # canonical owned paths so positive controls reach the real boundary.
     TEMP=$taskTemporary;TMP=$taskTemporary
     LMTI_WEB_TEST_PYTHON=$taskPython;LMTI_WEB_TEST_PACKAGE=$taskPackage
-    LMTI_WEB_TEST_PRODUCER=$taskProducer;LMTI_WEB_TEST_QT_PROBE=$taskProbe;LMTI_WEB_TEST_OFFSCREEN=$taskOffscreen
+    LMTI_WEB_TEST_PRODUCER=$taskProducer
     LMTI_WEB_TEST_BINDING_PRODUCER=$taskBindingProducer
     LMTI_WEB_TEST_CONFIG_OWNER=(Join-Path $taskPackage 'share/lmti/scripts/mcp-config-owner.py')
     LMTI_WEB_TEST_AGENT_OWNER=(Join-Path $taskPackage 'share/lmti/scripts/agent-read-owner.py')
@@ -53,7 +49,7 @@ $taskEnvironment=@{
 }
 $taskPrevious=@{}
 $taskReport=[ordered]@{schema='lmti.local-web.verification.v1';allSelectedChecksPassed=$false;checks=@();
-    externalAcceptance=@('actual Cursor','provider OAuth/reachability','independent operator','clean Windows run','complete parity/history and pilot')}
+    externalAcceptance=@('actual Cursor','provider OAuth/reachability','independent operator','clean Windows run','browser feature coverage and pilot')}
 function Invoke-VerificationNode([string]$Name,[string[]]$Arguments) {
     $taskLog=Join-Path $taskEvidence ($Name+'.log')
     $taskSavedPreference=$ErrorActionPreference
@@ -80,15 +76,12 @@ try {
     $taskRuntime=Join-Path $taskEvidence 'runtime'
     New-Item -ItemType Directory -Path $taskRuntime|Out-Null
     Copy-Item -LiteralPath (Join-Path $taskPackage 'bin'),(Join-Path $taskPackage 'plugins') -Destination $taskRuntime -Recurse
-    Copy-Item -LiteralPath $taskProducer,$taskProbe,$taskBindingProducer,$taskWriteAdmin -Destination (Join-Path $taskRuntime 'bin')
+    Copy-Item -LiteralPath $taskProducer,$taskBindingProducer,$taskWriteAdmin -Destination (Join-Path $taskRuntime 'bin')
     [Environment]::SetEnvironmentVariable('LMTI_WEB_TEST_PRODUCER',(Join-Path $taskRuntime 'bin/lmti-mcp-profile-tests.exe'))
-    [Environment]::SetEnvironmentVariable('LMTI_WEB_TEST_QT_PROBE',(Join-Path $taskRuntime 'bin/lmti-qt-web-probe.exe'))
     [Environment]::SetEnvironmentVariable('LMTI_WEB_TEST_BINDING_PRODUCER',(Join-Path $taskRuntime 'bin/lmti-mcp-binding-identity-tests.exe'))
     [Environment]::SetEnvironmentVariable('LMTI_WEB_TEST_UPGRADE_WRITE_ADMIN',(Join-Path $taskRuntime 'bin/lmti-project-operation-write-test-admin.exe'))
     Invoke-VerificationNode -Name 'ui' -Arguments @('--test','--test-reporter=tap','--test-concurrency=1','apps/web-ui/test/*.test.mjs')
     Invoke-VerificationNode -Name 'api' -Arguments @('--test','--test-reporter=tap','--test-concurrency=1','apps/web-api/test/*.test.mjs')
-    Invoke-VerificationNode -Name 'qt-api' -Arguments @('scripts/web-qt-interop-smoke.mjs')
-    Invoke-VerificationNode -Name 'qt-ipc-fault' -Arguments @('scripts/web-qt-interop-smoke.mjs','--ipc-lock')
     $taskReport.allSelectedChecksPassed=$true
 } finally {
     foreach($taskKey in $taskPrevious.Keys) { [Environment]::SetEnvironmentVariable($taskKey,$taskPrevious[$taskKey]) }

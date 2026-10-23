@@ -4,8 +4,8 @@
 
 This document covers local development for contributors.
 
-For the native C++/Qt desktop and Python Agent SDK, see
-[Architecture Studio development](topology-studio.md). The commands below
+For the native C++/SQLite backend and Python Agent SDK, see
+[release build instructions](release-build.md) and [local web setup](local-web.md). The commands below
 continue to build the existing TypeScript memory/context components.
 
 ## Requirements
@@ -22,7 +22,7 @@ continue to build the existing TypeScript memory/context components.
 | --- | --- | --- |
 | Project memory / CLI | Node 24, pinned pnpm, TypeScript | `corepack pnpm build`, `corepack pnpm test` |
 | Go compatibility | Go 1.22+, Node with `node:sqlite` | `go test ./...`; record skipped tests, especially storage |
-| Native Studio | C++20/MSVC, CMake 3.24+, Qt 6.12+ | Build/package script and CTest from the [Studio guide](topology-studio.md) |
+| Native backend | C++20/MSVC, CMake 3.24+, Qt Core/Sql 6.12+ | Headless build/package script and CTest from the [release guide](release-build.md) |
 | Topology Agent | Python 3.11+, packaged native binary | Unittest from the Studio guide; integration skips when `LMTI_TOPOLOGY_BINARY` is missing |
 | Local MCP web | Node 24, React/TypeScript/Vite, native/Python owners | `corepack pnpm web:build`; `web:api:test` with native fixture and test Python; isolated browser workflows and [package guide](local-web.md) |
 

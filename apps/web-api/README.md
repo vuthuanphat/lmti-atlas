@@ -12,7 +12,7 @@ study fixtures are not imported into the application.
 
 ## Build and launch
 
-Use existing Node 24+, TypeScript and the trusted native/Qt package:
+Use existing Node 24+, TypeScript and the trusted native Core/Sql backend package:
 
 ```powershell
 corepack pnpm web:build
@@ -28,8 +28,9 @@ search or migration. Default package is `build/studio-web-20261013`; use
 
 The launcher freezes local operator scope to currently registered project IDs.
 Use `-ProjectId factory-monitor` to select a subset. Library membership does not
-grant an external Agent access. Folder creation/linking still uses native Studio;
-no directory browser, repository upload, arbitrary file/path/shell endpoint.
+grant an external Agent access. Create/register projects using the explicit local operator commands in
+[local setup](../../docs/local-web.md#khởi-tạo-dự-án-không-cần-desktop). The web
+API has no arbitrary path/shell or repository upload endpoint.
 
 Launcher opens the browser with a cryptographic one-use fragment, then the page
 removes that fragment and exchanges it for a session held only in tab memory.
@@ -68,7 +69,7 @@ killed when the UI disconnects/times out. Commit may return 202 with `outcome:
 pending` and operation ID; poll authenticated `GET /api/v1/operations/{id}`.
 Completed results are retained at most 10 minutes/on active session. A server
 crash needs fresh owner status/recovery; no blind write retry. Native revision and
-Python optimistic checks remain authoritative for concurrent Qt/IDE edits. There
+Python optimistic checks remain authoritative for concurrent native/IDE edits. There
 is no atomic transaction across profile SQLite, client files and both clients.
 
 Project cursors bind to session, page size and the current permitted library
@@ -79,7 +80,7 @@ Status/check/export/preview may reveal only permitted nonsecret project metadata
 ## Verification
 
 The [repeatable Windows runner](../../docs/plans/2026-10-14-web-verification-runner.md)
-selects package/native/SDK paths and runs doctor, API and real Qt/API checks:
+selects package/native paths and runs doctor, browser UI tests and real native-owner/API checks:
 
 ```powershell
 & .\scripts\verify-local-web.ps1

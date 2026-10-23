@@ -1,5 +1,9 @@
 # Native topology core, Qt desktop and Python Agent boundary
 
+> The Qt Widgets UI portion is superseded by the
+> [browser-only UI decision](2026-10-23-browser-only-ui.md). Core/Sql storage and
+> the scoped Python boundary remain in effect.
+
 Date: 2026-10-11. Status: accepted for the local topology MVP.
 
 The owner requested an IoT architecture editor, typed C++ implementation,

@@ -15,7 +15,8 @@ compatibility, known-limitations and rollback information.
 - Authenticated local web UI/API and typed native project/topology owners.
 - Scoped Python Agent SDK/MCP, evidence-bearing context and controlled replay.
 - Project MCP setup, hierarchy, reviewed proposals, project copy/activation and
-  recovery workflows, with Qt desktop fallback.
+  recovery workflows in the React + Vite workspace.
+- Local operator CLI for creating/registering projects without a desktop UI.
 - Windows native audit ACL helper and artifact/third-party release materials.
 
 ### Changed
@@ -27,8 +28,8 @@ compatibility, known-limitations and rollback information.
 - Move public layer documentation out of the operational `.lmti/` directory.
 - Preserve the current complete workspace lockfile; the old public lockfile
   omitted the CLI's `@atlas/runtime` dependency and failed frozen installation.
-- Update the Qt Knowledge round-trip fixture to use the supported
-  `--privacy-level` flag under strict CLI argument validation.
+- Remove the native Qt desktop UI, GUI runtime, launchers, renderer and desktop
+  tests; retain Qt Core/Sql backend owners and Windows browser/backend support.
 
 ### Security
 

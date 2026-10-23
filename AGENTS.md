@@ -84,7 +84,8 @@ Do not inflate LMTI into a full AI framework.
 Stabilize memory, context routing, privacy, verification, and lesson capture.
 
 Develop the accepted local Architecture Studio slice through typed C++ core,
-Qt desktop/SQLite adapters and a scoped Python Agent boundary.
+React + Vite presentation, Qt Core/Sql SQLite adapters and a scoped Python Agent boundary.
+The user removed the Qt desktop UI on 2026-10-23; do not reintroduce it.
 ```
 
 During local-alpha work, do not create production framework claims or deeply
@@ -304,7 +305,7 @@ Before making changes, Codex should:
 10. Do not bypass LMTI privacy gates, do not widen permissions to make a task pass, and never print secrets.
 11. Do not store raw chat, raw secrets, raw customer data, or unverified hallucinations as memory.
 12. Before publishing, pushing to a public repo, opening a PR, creating a release, or changing a Git remote, always run `lmti publish preflight`. If it returns ERROR/BLOCKED, stop immediately and ask the user to resolve or approve a safe recovery path.
-13. The user-approved IoT architecture phase uses a typed C++ domain core, a C++/Qt Widgets desktop, SQLite topology storage, and a Python Agent SDK/MCP boundary. Keep existing TypeScript/Go memory commands compatible; Go remains the legacy experimental memory path. JSON is only a CLI/API/proposal boundary, not the domain model or durable topology format. Do not introduce Protobuf, gRPC, direct Agent storage access, arbitrary shell tools, or device execution in the local topology MVP. See docs/topology-studio.md and docs/adr/2026-10-11-native-topology.md.
+13. The user-approved IoT architecture phase uses a typed C++ domain core, a React + Vite browser UI (superseding the removed Qt desktop on 2026-10-23), Qt Core/Sql SQLite topology storage, and a Python Agent SDK/MCP boundary. Keep existing TypeScript/Go memory commands compatible; Go remains the legacy experimental memory path. JSON is only a CLI/API/proposal boundary, not the domain model or durable topology format. Do not introduce Protobuf, gRPC, direct Agent storage access, arbitrary shell tools, or device execution in the local topology MVP. See docs/topology-studio.md and docs/adr/2026-10-11-native-topology.md.
 
 Suggested local command:
 

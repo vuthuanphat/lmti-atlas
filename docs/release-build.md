@@ -25,14 +25,16 @@ corepack pnpm web:build
 & .\scripts\package-local-web.ps1 -NativePackage build/studio -AdminPackage build/studio -OutputDirectory build/lmti-v0.2.0-alpha.1-windows-x64
 ```
 
-Build outputs stay under `build/`. The native build also supplies the trusted
+Use a fresh native install and web output directory; existing installations are
+preserved and stale desktop runtime files are rejected. Build outputs stay under `build/`. The native build also supplies the trusted
 source-CLI helper at `build/audit-acl/bin/lmti-audit-acl.exe`. The release package
 contains its own helper under `bin/`; it never searches PATH for a replacement.
 
 ## Verification
 
 Run the complete TS suite, UI Node tests, native CTest, Python integration,
-Go compatibility, API/Qt interop and browser workflows. The optional integration
+Go compatibility, native owner/API integration and browser workflows. Desktop
+QtTest and Qt/API coexistence trials were removed with the desktop application. The optional integration
 environment must point at binaries and fixtures built from the same candidate.
 Record skipped tests and run platform-specific cases on their target platform.
 The [development guide](development.md) and [package verifier](../scripts/verify-local-web.ps1)
@@ -42,7 +44,7 @@ document entry points. Use package mirrors for tests that may generate caches.
 
 Create the source archive from the reviewed commit. Include the built Windows
 package, SHA-256 checksums, release notes, SBOM/inventory and third-party notices.
-Qt corresponding source and applicable license texts must accompany the offline
+Qt Core/Sql corresponding source and applicable license texts must accompany the offline
 distribution as described in `THIRD-PARTY-NOTICES.txt`; preserve the unmodified
 Qt dynamic libraries and their replacement/rebuild rights. Do not package build
 logs, developer paths, test stores or reports containing private metadata.

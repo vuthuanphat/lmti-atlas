@@ -4,7 +4,7 @@ LMTI source is Apache-2.0; see LICENSE. Dependencies retain their own licenses.
 This document does not relicense third-party components.
 
 Windows runtime distribution:
-- Qt 6.12.0 Core, GUI, Widgets, SQL and selected plugins are dynamically linked.
+- Qt 6.12.0 Core, SQL and the SQLite driver plugin are dynamically linked.
   The open-source licensing alternatives and component-specific notices are in
   share/lmti/third-party/qt (including SPDX SBOM and license/attribution texts).
   Qt source revision recorded by the publisher SBOM:

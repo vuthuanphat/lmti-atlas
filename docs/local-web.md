@@ -1,7 +1,8 @@
 # LMTI local web
 
 Giao diện React chạy trên máy, mở vào **Overview (Tổng quan)**, dùng cùng C++/SQLite
-owners với Qt Studio và cùng Python owner để quản lý file client. Không cần
+owners và Python owner để quản lý file client. React + Vite là giao diện duy nhất;
+ứng dụng Qt desktop và launcher dự phòng đã được gỡ. Không cần
 Vite dev server, dịch vụ cloud hay tài khoản LMTI.
 
 ## Candidate v0.2.0-alpha.1
@@ -16,8 +17,8 @@ và hồ sơ nghiệm thu đi kèm. Đây là candidate local, chưa công bố.
 `build/studio-web-mcp-bridge-20261019-r2` là snapshot kiểm chứng MCP trước đây;
 gói đó chưa có cổng thao tác bản sao/kích hoạt và phục hồi mô tả dưới đây.
 Các chức năng mới cần package mới từ source và Release native hiện tại.
-Truyền `-PackageDirectory` tường minh khi chạy launcher từ repository. Default cũ
-vẫn giữ đến gate cutover; launcher bên trong package chọn chính package chứa nó.
+Truyền `-PackageDirectory` tường minh khi chạy launcher từ repository. Default trong repository trỏ tới candidate `build/lmti-v0.2.0-alpha.1-windows-x64`;
+launcher bên trong package chọn chính package chứa nó.
 [Contract, cấu hình nguồn và bằng chứng](plans/2026-10-19-integrated-mvp.md).
 Tài liệu trong source bổ sung kết quả kiểm chứng mới nhất; bản tài liệu nằm trong
 package là snapshot lúc build. Không sửa package chỉ để cập nhật kết quả kiểm thử.
@@ -28,7 +29,7 @@ không thay nghiệm thu client/operator hay Windows sạch.
 
 Cần Windows x64, Node.js 24 trở lên, Python 3.11 trở lên và MSVC runtime phù hợp
 với bản Qt/native từ nguồn tin cậy. Cài mới trên Windows sạch còn là gate nghiệm thu.
-Qt DLL/plugins và Python SDK đã nằm trong package; Node/Python chưa được bundle.
+Qt Core/Sql, SQLite driver và Python SDK đã nằm trong package; Node/Python chưa được bundle.
 
 Gói mới còn chứa `bin/lmti-audit-acl.exe`, helper Windows native để giữ nguyên
 DACL khi thay file audit. Helper được publisher build và đưa vào manifest;
@@ -50,7 +51,7 @@ danh sách bị từ chối, ngoại trừ cache `.pyc` trong SDK; cache này kh
 thực bằng manifest. Chỉ chạy gói
 và Node/Python từ nguồn đã tin cậy. Kiểm tra này không thay nghiệm thu Windows sạch.
 Chọn thư mục dữ liệu Studio đang có `project-library.sqlite`; dự án và thư mục
-liên kết phải được đăng ký trong Qt Studio trước.
+liên kết được đăng ký bằng CLI operator dưới đây. Dữ liệu cũ được giữ nguyên.
 
 ```powershell
 & .\scripts\start-local-web.ps1 -DataDirectory 'C:\path\to\studio-data'
@@ -148,22 +149,40 @@ bị thu hồi; thao tác này không cấp lại quyền đọc nguồn.
 Observation hiện chỉ là controlled replay. Giá trị cũ, unknown hoặc nguồn thu hồi
 quyền không được trình bày như kết nối thiết bị live.
 
-## Qt dự phòng và giới hạn
+## Khởi tạo dự án không cần desktop
+
+Các lệnh dưới đây là CLI operator cục bộ, không được cung cấp cho Agent MCP
+hay HTTP. Chọn đường dẫn tuyệt đối trên ổ cục bộ; tạo thư mục dữ liệu và thư mục
+dự án trước. Không trỏ vào `.lmti/`. Thay các đường dẫn ví dụ bằng thư mục bạn chọn.
 
 ```powershell
-& .\scripts\start-local-studio-fallback.ps1 -DataDirectory 'C:\path\to\studio-data'
+& .\bin\lmti-project.exe init-project 'C:\projects\example\project.lmti.sqlite' example 'Example project'
+& .\bin\lmti-project.exe library-register 'C:\lmti-data\project-library.sqlite' 'C:\projects\example\project.lmti.sqlite' 'C:\projects\example'
+& .\scripts\start-local-web.ps1 -DataDirectory 'C:\lmti-data'
 ```
 
-Qt vẫn tạo/liên kết dự án và sửa topology. Web gọi cùng native owner cho bản sao,
-nâng định dạng thư viện và kích hoạt được duyệt; không tự ghi SQLite. Trong
-**Architecture → Inventory & relationships**, inventory/entity/relations được đọc
-qua native owner; **Knowledge** hiển thị source/evidence và task context khi launcher
-đã cấp quyền. Tab Desired settings
-cho asset có review/commit `enabled` và `pollMs`; chỉ ghi desired configuration,
-không gửi lệnh thiết bị. Không có quyền đọc opt-in thì tính năng này báo chưa hỗ trợ.
-Trạng thái thiết bị thật thuộc OBS-01, chưa được kết nối. Google Drive, lesson và
-impact review giữ luồng native hiện có; launcher Qt trong package này không tự
-bật các quyền tích hợp đó. Dùng launcher repository hiện có khi cần các quyền ấy.
+`init-project` tạo metadata nonsecret/internal trống với ID và tên đã kiểm tra.
+Để thử bằng dữ liệu giả, thay lệnh đầu bằng
+`lmti-project.exe init-demo <đường-dẫn-file-mới>`; không đăng ký demo vào thư viện
+đang có cùng ID. Các lệnh không ghi đè project có sẵn, không scan repository,
+không sửa `.lmti/` và không tự cấp quyền cho Agent.
+
+`library-register` tạo thư viện v1 mới bằng reservation độc quyền. Để thêm dự án
+khác, trước tiên dùng **Project operations → Library upgrade** với quyền bảo trì
+được cấp tường minh theo hướng dẫn phía trên; bản sao lưu được giữ lại. Với thư
+viện v2/v3, đăng ký dùng generation/CAS và từ chối ID hoặc thư mục đã tồn tại;
+không thay binding cũ. Khi có lỗi, kiểm tra trạng thái hiện tại trước khi thử lại.
+Không sửa SQLite trực tiếp hay nâng định dạng ngầm để vượt qua lỗi.
+
+## Phạm vi web và giới hạn
+
+Web gọi native owner cho bản sao, nâng định dạng thư viện và kích hoạt được duyệt;
+không tự ghi SQLite. **Architecture → Inventory & relationships** và **Knowledge**
+hiển thị dữ liệu/evidence theo scope launcher. Desired settings có review/commit
+`enabled` và `pollMs`; chỉ ghi desired configuration, không gửi lệnh thiết bị.
+Trạng thái thiết bị thật chưa được kết nối. Các màn hình chỉ có ở Qt trước đây
+(canvas topology kéo/thả, Drive/Impact panel) đã bị loại bỏ, không được coi là tính
+năng web đã chuyển đổi. CLI/SDK owner độc lập vẫn được giữ.
 SQLite topology/profile chỉ lưu dữ liệu nonsecret và chưa mã hóa. Phiên web là
 quyền operator local, không phải sandbox hay phân quyền nhiều người.
 
@@ -180,6 +199,6 @@ Package script cần hai package native đã build, nhận đường dẫn tươ
 `build/`, ghi vào thư mục mới để giữ bản cũ. `manifest.json` ghi SHA256 file để
 review tính toàn vẹn, gồm helper cố định `web-broker-guard.py`; doctor kiểm tra
 mọi file được liệt kê. Dùng cùng một lần cài native Release mới cho cả
-`-NativePackage` và `-AdminPackage` để không trộn Qt desktop cũ với CLI mới.
+`-NativePackage` và `-AdminPackage` để giữ cùng phiên bản backend. Package từ chối runtime GUI cũ.
 Đây không phải chữ ký publisher. Chạy `lmti publish preflight`
 trước push/PR/release; kiểm tra `.gitignore` cho `.env`, secrets và client runtime.

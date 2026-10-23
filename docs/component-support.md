@@ -1,5 +1,11 @@
 # Component support and ownership
 
+**Current scope (2026-10-23):** React + Vite is the sole UI. `apps/desktop`,
+Qt Widgets/GUI deployment, desktop launchers and QtTest/coexistence trials have
+been removed. Native C++/Qt Core/Sql, Python and TS owners remain. Desktop-specific
+rows below record previous implementation history, not available UI features.
+See the [superseding decision](adr/2026-10-23-browser-only-ui.md).
+
 Planning update 2026-10-13: [master r5](LMTI_MASTER_PLAN.md) prioritizes a
 [local browser UI transition](plans/2026-10-13-web-ui-transition.md), retaining a project
 MCP profile shared by Codex/Cursor, retaining the Agent–project/context direction

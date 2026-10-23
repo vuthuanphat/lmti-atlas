@@ -1,5 +1,11 @@
 # Projects — local software/hardware management
 
+> **Scope update 2026-10-23:** Qt desktop has been removed. Desktop screens,
+> screenshots and launcher instructions below are historical and no longer runnable.
+> Use the [React + Vite workspace](local-web.md) and [headless build](release-build.md).
+> Standalone CLI/SDK owners retain their documented boundaries; former Qt-only
+> features are not automatically available in the browser UI.
+
 Updated: 2026-10-13. Status: implemented experimental local alpha; manual operator,
 product MCP-client and clean Windows acceptance remain pending.
 

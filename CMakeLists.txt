@@ -5,7 +5,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-option(LMTI_BUILD_DESKTOP "Build the Qt Widgets topology editor" ON)
 option(LMTI_BUILD_TESTS "Build topology tests" ON)
 if(LMTI_BUILD_TESTS)
   enable_testing()
@@ -48,23 +47,7 @@ add_executable(lmti-mcp-admin native/cli/mcp_admin.cpp native/cli/project_operat
   native/storage/mcp_original_read.cpp native/storage/original_read.cpp)
 target_link_libraries(lmti-mcp-admin PRIVATE lmti_project_storage lmti_mcp_profile_storage)
 
-if(LMTI_BUILD_DESKTOP)
-  find_package(Qt6 6.12 REQUIRED COMPONENTS Widgets)
-  add_library(lmti_desktop_ui apps/desktop/window.cpp apps/desktop/project_window.cpp
-    apps/desktop/project_library_view.cpp apps/desktop/project_language.cpp apps/desktop/project_presentation.cpp
-    apps/desktop/knowledge_panel.cpp apps/desktop/project_settings_view.cpp apps/desktop/agent_review_view.cpp
-    apps/desktop/impact_panel.cpp apps/desktop/drive_knowledge_panel.cpp apps/desktop/mcp_profile_panel.cpp)
-  target_link_libraries(lmti_desktop_ui PUBLIC lmti_project_storage lmti_mcp_profile_storage Qt6::Widgets)
-  target_include_directories(lmti_desktop_ui PUBLIC apps/desktop)
-  add_executable(lmti-desktop WIN32 apps/desktop/main.cpp apps/desktop/design_render.cpp
-    apps/desktop/design_fixture.cpp)
-  target_link_libraries(lmti-desktop PRIVATE lmti_desktop_ui)
-  install(TARGETS lmti-desktop RUNTIME DESTINATION bin)
-  qt_generate_deploy_app_script(TARGET lmti-desktop OUTPUT_SCRIPT desktop_deploy NO_UNSUPPORTED_PLATFORM_ERROR
-    NO_TRANSLATIONS EXCLUDE_PLUGIN_TYPES generic imageformats networkinformation tls
-    EXCLUDE_PLUGINS qsqlibase qsqlmimer qsqloci qsqlodbc qsqlpsql)
-  install(SCRIPT ${desktop_deploy})
-endif()
+
 install(TARGETS lmti-topology RUNTIME DESTINATION bin)
 qt_generate_deploy_app_script(TARGET lmti-topology OUTPUT_SCRIPT cli_deploy NO_UNSUPPORTED_PLATFORM_ERROR
   NO_TRANSLATIONS EXCLUDE_PLUGINS qsqlibase qsqlmimer qsqloci qsqlodbc qsqlpsql)
@@ -91,12 +74,6 @@ install(FILES docs/plans/2026-10-11-project-execution.md
   docs/plans/2026-10-13-google-drive.md
   docs/plans/2026-10-13-simple-studio.md
   DESTINATION share/lmti/plans)
-install(FILES docs/assets/project-overview.png docs/assets/project-relationships.png
-  docs/assets/project-work.png docs/assets/project-library.png docs/assets/project-library-vi.png
-  docs/assets/ui-software.png docs/assets/ui-agent-vi.png
-  docs/assets/ui-v2-empty-library.png docs/assets/ui-v2-library.png
-  docs/assets/ui-v2-software.png docs/assets/ui-v2-overview.png
-  DESTINATION share/lmti/assets)
 set(qt_sbom "${Qt6_DIR}/../../../sbom/qtbase-${Qt6_VERSION}.spdx.json")
 if(EXISTS "${qt_sbom}")
   install(FILES "${qt_sbom}" DESTINATION share/lmti/third-party)
@@ -112,6 +89,11 @@ if(LMTI_BUILD_TESTS)
   add_executable(lmti-project-tests native/tests/project_tests.cpp)
   target_link_libraries(lmti-project-tests PRIVATE lmti_project_storage)
   add_test(NAME project_domain_storage COMMAND lmti-project-tests)
+  add_executable(lmti-project-setup-tests native/tests/project_setup_tests.cpp)
+  target_link_libraries(lmti-project-setup-tests PRIVATE lmti_project_storage)
+  add_dependencies(lmti-project-setup-tests lmti-project)
+  add_test(NAME project_operator_setup COMMAND lmti-project-setup-tests $<TARGET_FILE:lmti-project>)
+  set_tests_properties(project_operator_setup PROPERTIES TIMEOUT 60)
   # Test-only fault points are absent from the shipped storage library.
   add_executable(lmti-project-library-generation-tests native/tests/project_library_generation_tests.cpp
     native/storage/project_library.cpp native/storage/project_store.cpp native/storage/project_copy.cpp)
@@ -310,50 +292,4 @@ if(LMTI_BUILD_TESTS)
   add_executable(lmti-web-benchmark-fixture native/tests/web_benchmark_fixture.cpp)
   target_link_libraries(lmti-web-benchmark-fixture PRIVATE lmti_project_storage lmti_mcp_profile_storage)
   target_compile_definitions(lmti-web-benchmark-fixture PRIVATE LMTI_INTEROP_BUILD_ROOT="${CMAKE_SOURCE_DIR}/build")
-  if(LMTI_BUILD_DESKTOP)
-    find_package(Qt6 6.12 REQUIRED COMPONENTS Test)
-    set(CMAKE_AUTOMOC ON)
-    add_executable(lmti-mcp-panel-tests apps/desktop/tests/mcp_profile_panel_test.cpp)
-    target_link_libraries(lmti-mcp-panel-tests PRIVATE lmti_desktop_ui Qt6::Test)
-    # Development-only coordinated Qt/API trial; deliberately not installed.
-    add_executable(lmti-qt-web-probe apps/desktop/tests/web_interop_probe.cpp)
-    target_link_libraries(lmti-qt-web-probe PRIVATE lmti_desktop_ui)
-    target_compile_definitions(lmti-qt-web-probe PRIVATE LMTI_INTEROP_BUILD_ROOT="${CMAKE_SOURCE_DIR}/build")
-    add_test(NAME mcp_desktop COMMAND lmti-mcp-panel-tests -o -,txt -o ${CMAKE_BINARY_DIR}/mcp-panel-tests.txt,txt)
-    set_tests_properties(mcp_desktop PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
-    find_package(Python3 3.11 COMPONENTS Interpreter)
-    if(Python3_Interpreter_FOUND)
-      set_tests_properties(mcp_desktop PROPERTIES ENVIRONMENT
-        "QT_QPA_PLATFORM=offscreen;LMTI_STUDIO_PYTHON_BINARY=${Python3_EXECUTABLE};LMTI_STUDIO_AGENT_ENTRY=${CMAKE_SOURCE_DIR}/scripts/lmti-agent-mcp.py;LMTI_STUDIO_MCP_CONFIG_OWNER=${CMAKE_SOURCE_DIR}/scripts/mcp-config-owner.py")
-    endif()
-    add_executable(lmti-mcp-binding-desktop-tests apps/desktop/tests/mcp_binding_test.cpp)
-    target_link_libraries(lmti-mcp-binding-desktop-tests PRIVATE lmti_desktop_ui Qt6::Test)
-    add_dependencies(lmti-mcp-binding-desktop-tests lmti-project)
-    add_test(NAME mcp_binding_desktop COMMAND lmti-mcp-binding-desktop-tests -o -,txt -o ${CMAKE_BINARY_DIR}/mcp-binding-tests.txt,txt)
-    set_tests_properties(mcp_binding_desktop PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 180)
-    if(Python3_Interpreter_FOUND)
-      set_tests_properties(mcp_binding_desktop PROPERTIES ENVIRONMENT
-        "QT_QPA_PLATFORM=offscreen;LMTI_STUDIO_PYTHON_BINARY=${Python3_EXECUTABLE};LMTI_STUDIO_AGENT_ENTRY=${CMAKE_SOURCE_DIR}/scripts/lmti-agent-mcp.py;LMTI_STUDIO_MCP_CONFIG_OWNER=${CMAKE_SOURCE_DIR}/scripts/mcp-config-owner.py")
-    endif()
-    add_executable(lmti-desktop-tests apps/desktop/tests/window_test.cpp apps/desktop/design_fixture.cpp)
-    target_link_libraries(lmti-desktop-tests PRIVATE lmti_desktop_ui Qt6::Test)
-    add_test(NAME topology_desktop COMMAND lmti-desktop-tests -o -,txt -o ${CMAKE_BINARY_DIR}/desktop-tests.txt,txt)
-    set_tests_properties(topology_desktop PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
-    add_executable(lmti-structure-desktop-tests apps/desktop/tests/structure_storage_test.cpp)
-    target_link_libraries(lmti-structure-desktop-tests PRIVATE lmti_desktop_ui Qt6::Test)
-    add_test(NAME structure_desktop COMMAND lmti-structure-desktop-tests -o -,txt)
-    set_tests_properties(structure_desktop PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
-    add_executable(lmti-library-cas-desktop-tests apps/desktop/tests/library_cas_test.cpp)
-    target_link_libraries(lmti-library-cas-desktop-tests PRIVATE lmti_desktop_ui Qt6::Test)
-    add_test(NAME library_cas_desktop COMMAND lmti-library-cas-desktop-tests -o -,txt)
-    set_tests_properties(library_cas_desktop PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 90)
-    add_executable(lmti-impact-panel-tests apps/desktop/tests/impact_panel_test.cpp)
-    target_link_libraries(lmti-impact-panel-tests PRIVATE lmti_desktop_ui Qt6::Test)
-    add_test(NAME impact_desktop COMMAND lmti-impact-panel-tests -o -,txt -o ${CMAKE_BINARY_DIR}/impact-panel-tests.txt,txt)
-    set_tests_properties(impact_desktop PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
-    add_executable(lmti-drive-panel-tests apps/desktop/tests/drive_knowledge_panel_test.cpp)
-    target_link_libraries(lmti-drive-panel-tests PRIVATE lmti_desktop_ui Qt6::Test)
-    add_test(NAME drive_desktop COMMAND lmti-drive-panel-tests -o -,txt -o ${CMAKE_BINARY_DIR}/drive-panel-tests.txt,txt)
-    set_tests_properties(drive_desktop PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
-  endif()
 endif()

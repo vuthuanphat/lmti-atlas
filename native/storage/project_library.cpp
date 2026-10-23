@@ -609,6 +609,26 @@ void import_recent_library(const QString &catalog,const QString &library) {
         } catch (...) { db.rollback(); throw; }
     });
 }
+void initialize_project_library(const QString &library,const LibraryEntry &entry) {
+    bounded([&] {
+        entry_valid(entry);
+        const auto path = detail::local_owner_path(entry.path, true);
+        const auto folder = checked_project_folder(entry.folder);
+        sidecars(path);
+        const auto metadata = load_project_metadata(path);
+        sidecars(path);
+        need(metadata.project.id == entry.id.toStdString(), LibraryCode::InvalidInput);
+        LibraryDb db(library, false, true);
+        db.exec("BEGIN IMMEDIATE");
+        try {
+            need(db.fresh && snapshot(db, true).rows.empty(), LibraryCode::Conflict);
+            db.change("INSERT INTO library VALUES(?,?,?,?,?,?,?)",
+                {entry.id,entry.label,path,folder,0,QDateTime::currentMSecsSinceEpoch(),key(folder)});
+            snapshot(db, true);
+            db.exec("COMMIT");
+        } catch (...) { db.rollback(); throw; }
+    });
+}
 void remember_library_project(const QString &library,const LibraryEntry &entry) {
     bounded([&] {
         entry_valid(entry);

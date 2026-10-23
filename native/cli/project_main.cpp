@@ -1,8 +1,10 @@
 #include "project_desired_asset.hpp"
 #include "project_mapping_observation.hpp"
 #include "lmti/project_store.hpp"
+#include "lmti/project_library.hpp"
 #include "lmti/storage.hpp"
 #include "../common/strict_json.hpp"
+#include "../common/local_owner_path.hpp"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -168,6 +170,31 @@ int main(int argc, char **argv) {
                             args[1] == "commit-proposal"))
         return proposal_owner(args);
     try {
+        // Local operator setup only; neither command is exposed by Agent MCP or HTTP.
+        if (args.size() == 5 && args[1] == "init-project") {
+            if (QFileInfo::exists(args[2]))
+                throw lmti::Error("Project initialization requires a new file.");
+            lmti::ProjectDocument document;
+            document.project = {args[3].toStdString(), args[4].toStdString(), "", lmti::Privacy::Internal};
+            lmti::validate(document);
+            lmti::save_project(args[2], document);
+            return 0;
+        }
+        if (args.size() == 5 && args[1] == "library-register") {
+            const auto libraryPath = lmti::detail::local_owner_path(args[2], false);
+            const auto projectPath = lmti::detail::local_owner_path(args[3], true);
+            const auto folder = lmti::checked_project_folder(args[4]);
+            const auto metadata = lmti::load_project_metadata(projectPath);
+            const lmti::LibraryEntry entry{QString::fromStdString(metadata.project.id),
+                QString::fromStdString(metadata.project.label), projectPath, folder};
+            if (!QFileInfo::exists(libraryPath)) {
+                lmti::initialize_project_library(libraryPath, entry);
+            } else {
+                const auto library = lmti::inspect_project_library(libraryPath);
+                lmti::register_library_project_cas(libraryPath, entry, library.token);
+            }
+            return 0;
+        }
         if (args.size() == 3 && args[1] == "init-demo") {
             if (QFileInfo::exists(args[2]))
                 throw lmti::Error("Demo initialization requires a new file.");

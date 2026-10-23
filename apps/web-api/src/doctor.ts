@@ -6,15 +6,14 @@ import { spawnSync } from 'node:child_process';
 import { exact, requireThat, strictJson, trustedPath } from './security.js';
 
 const required = [
-  'bin/lmti-mcp-admin.exe', 'bin/lmti-project.exe', 'bin/lmti-desktop.exe',
-  'bin/Qt6Core.dll', 'bin/Qt6Gui.dll', 'bin/Qt6Widgets.dll', 'bin/Qt6Sql.dll',
-  'plugins/platforms/qwindows.dll', 'plugins/sqldrivers/qsqlite.dll',
+  'bin/lmti-mcp-admin.exe', 'bin/lmti-project.exe',
+  'bin/Qt6Core.dll', 'bin/Qt6Sql.dll', 'plugins/sqldrivers/qsqlite.dll',
   'share/lmti/scripts/lmti-agent-mcp.py', 'share/lmti/scripts/mcp-config-owner.py',
   'share/lmti/scripts/agent-read-owner.py', 'share/lmti/knowledge-owner/index.js', 'share/lmti/knowledge-owner/package.json',
   ...['client','source','knowledge','observations','integrated','integration_config','integrated_mcp','operator_read'].map(n => `share/lmti/python/src/lmti_agent/${n}.py`),
   'apps/web-api/package.json', 'apps/web-ui/dist/index.html',
   ...['main','server','owners','security','process','assets','contracts','doctor'].map(n => `apps/web-api/dist/${n}.js`),
-  'scripts/start-local-web.ps1', 'scripts/test-local-web-package.ps1', 'scripts/start-local-studio-fallback.ps1'
+  'scripts/start-local-web.ps1', 'scripts/test-local-web-package.ps1'
 ];
 
 // Existing packages may omit this capability. A present capability must be complete.
@@ -51,6 +50,8 @@ export async function verifyPackage(root: string) {
     requireThat(read === size && digest.digest('hex').toLowerCase() === file.sha256.toLowerCase(), 'OWNER_UNAVAILABLE');
   }
   requireThat(required.every(p => names.has(p.toLowerCase())), 'OWNER_UNAVAILABLE');
+  // This release has one browser UI. A rehashed stale GUI package is refused too.
+  requireThat(![...names].some(p => /^(?:bin\/(?:lmti-desktop\.exe|qt6(?:gui|widgets)\.dll)|plugins\/platforms\/|scripts\/start-local-studio-fallback\.ps1)/.test(p)), 'OWNER_UNAVAILABLE');
   requireThat(!reviewedMappingFiles.some(p => names.has(p.toLowerCase())) ||
     reviewedMappingFiles.every(p => names.has(p.toLowerCase())), 'OWNER_UNAVAILABLE');
   // Reject extra executable/assets/SDK files as well as missing listed files.
@@ -95,7 +96,7 @@ export async function inspectPackage(root: string, python: string) {
   requireThat(Array.isArray(version.version) && version.version.length === 3 &&
     version.version.every(v => Number.isInteger(v) && v >= 0) && version.version[0] === 3 && version.version[1] >= 11 && version.bits === 64, 'NOT_SUPPORTED');
   // No arguments: refuses before opening a database. Proves native/Qt Core
-  // can load; does not claim full desktop parity or operator acceptance.
+  // can load; does not claim browser or operator acceptance.
   const native = exact(strictJson(Buffer.from(run(join(root,'bin/lmti-mcp-admin.exe'),[]))), ['ok','code']);
   requireThat(native.ok === false && native.code === 'INVALID_INPUT', 'OWNER_UNAVAILABLE');
   // Empty input must reach the fixed denial boundary without opening any source.

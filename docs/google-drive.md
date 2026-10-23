@@ -1,5 +1,11 @@
 # Google Drive in LMTI Studio
 
+> **Scope update 2026-10-23:** Qt desktop has been removed. Desktop screens,
+> screenshots and launcher instructions below are historical and no longer runnable.
+> Use the [React + Vite workspace](local-web.md) and [headless build](release-build.md).
+> Standalone CLI/SDK owners retain their documented boundaries; former Qt-only
+> features are not automatically available in the browser UI.
+
 The local-alpha integration adds **Knowledge → Google Drive**. In a publisher
 configured build, save/open a project, acknowledge Google's read-only account
 scope, click **Connect Google Drive**, sign in through the system browser,

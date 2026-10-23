@@ -85,7 +85,7 @@ $taskRoot = Split-Path -Parent $PSScriptRoot
 $taskData = (Resolve-Path -LiteralPath $DataDirectory).Path
 if (-not (Test-Path -LiteralPath $taskData -PathType Container)) { throw 'Choose an existing Studio data directory.' }
 if (-not $PackageDirectory) {
-    $PackageDirectory = if (Test-Path -LiteralPath (Join-Path $taskRoot 'bin/lmti-mcp-admin.exe')) { $taskRoot } else { Join-Path $taskRoot 'build/studio-web03-projection-20261014' }
+    $PackageDirectory = if (Test-Path -LiteralPath (Join-Path $taskRoot 'bin/lmti-mcp-admin.exe')) { $taskRoot } else { Join-Path $taskRoot 'build/lmti-v0.2.0-alpha.1-windows-x64' }
 }
 Assert-LocalOwnerPath $PackageDirectory
 $taskPackage = (Resolve-Path -LiteralPath $PackageDirectory).Path

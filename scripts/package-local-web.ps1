@@ -1,8 +1,8 @@
 param(
-    [string]$NativePackage = 'build/studio-projection-native-20261014',
-    [string]$AdminPackage = 'build/studio-projection-native-20261014',
+    [string]$NativePackage = 'build/studio',
+    [string]$AdminPackage = 'build/studio',
     [string]$AuditAclHelper = 'build/audit-acl/bin/lmti-audit-acl.exe',
-    [string]$OutputDirectory = 'build/studio-web03-projection-20261014',
+    [string]$OutputDirectory = 'build/lmti-v0.2.0-alpha.1-windows-x64',
     [switch]$SkipWebBuild
 )
 $ErrorActionPreference = 'Stop'
@@ -19,7 +19,7 @@ $taskAdmin = Resolve-BuildPath $AdminPackage
 $taskAuditAclHelper = Resolve-BuildPath $AuditAclHelper
 $taskOutput = Resolve-BuildPath $OutputDirectory
 if (Test-Path -LiteralPath $taskOutput) { throw 'Choose a fresh package directory; existing packages are preserved.' }
-foreach ($taskPath in @((Join-Path $taskNative 'bin/lmti-desktop.exe'), (Join-Path $taskAdmin 'bin/lmti-mcp-admin.exe'), $taskAuditAclHelper)) {
+foreach ($taskPath in @((Join-Path $taskNative 'bin/lmti-project.exe'), (Join-Path $taskAdmin 'bin/lmti-mcp-admin.exe'), $taskAuditAclHelper)) {
     if (-not (Test-Path -LiteralPath $taskPath -PathType Leaf)) { throw 'Build the trusted native packages first.' }
 }
 if ((Get-Item -LiteralPath $taskAuditAclHelper).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Linked audit ACL helper refused.' }
@@ -28,6 +28,11 @@ for ($taskAclPath = (Get-Item -LiteralPath $taskAuditAclHelper).Directory; $null
 }
 foreach ($taskSource in @($taskNative,$taskAdmin)) {
     if (Get-ChildItem -LiteralPath $taskSource -Recurse -Force | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }) { throw 'Package inputs must not contain links.' }
+}
+foreach ($taskSource in @($taskNative,$taskAdmin)) {
+    foreach ($taskRetired in @('bin/lmti-desktop.exe','bin/Qt6Gui.dll','bin/Qt6Widgets.dll','plugins/platforms')) {
+        if (Test-Path -LiteralPath (Join-Path $taskSource $taskRetired)) { throw 'Retired desktop runtime found. Build a fresh headless native package.' }
+    }
 }
 if (-not $SkipWebBuild) {
     Push-Location $taskRoot
@@ -56,7 +61,7 @@ foreach ($taskPythonFile in (Get-ChildItem -LiteralPath $taskPythonSource -Recur
 if ($LASTEXITCODE -ne 0) { throw 'Knowledge owner bundle failed.' }
 & node (Join-Path $taskRoot 'scripts/build-agent-mapping-owner.mjs') (Join-Path $taskOutput 'share/lmti/mapping-owner')
 if ($LASTEXITCODE -ne 0) { throw 'Mapping owner bundle failed.' }
-foreach ($taskScript in @('start-local-web.ps1','start-local-studio-fallback.ps1','test-local-web-package.ps1')) { Copy-Item -LiteralPath (Join-Path $taskRoot "scripts/$taskScript") -Destination (Join-Path $taskOutput 'scripts') }
+foreach ($taskScript in @('start-local-web.ps1','test-local-web-package.ps1')) { Copy-Item -LiteralPath (Join-Path $taskRoot "scripts/$taskScript") -Destination (Join-Path $taskOutput 'scripts') }
 $taskReadme = [IO.File]::ReadAllText((Join-Path $taskRoot 'docs/local-web.md'))
 $taskReadme = $taskReadme.Replace('](plans/', '](share/lmti/plans/').Replace('](benchmarks/', '](share/lmti/benchmarks/')
 [IO.File]::WriteAllText((Join-Path $taskOutput 'README.md'), $taskReadme, [Text.UTF8Encoding]::new($false))
@@ -102,4 +107,4 @@ $taskManifest = @(Get-ChildItem -LiteralPath $taskOutput -File -Recurse -Force |
     @{ file = $_.FullName.Substring($taskOutput.Length + 1).Replace('\','/'); sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash }
 })
 [IO.File]::WriteAllText((Join-Path $taskOutput 'manifest.json'), (@{ schema='lmti.local-web.package.v1'; requires=@('Windows x64','Node.js >=24','Python >=3.11','Compatible MSVC runtime'); files=$taskManifest } | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
-[pscustomobject]@{ Package=$taskOutput; Launcher=Join-Path $taskOutput 'scripts/start-local-web.ps1'; QtFallback=Join-Path $taskOutput 'scripts/start-local-studio-fallback.ps1' }
+[pscustomobject]@{ Package=$taskOutput; Launcher=Join-Path $taskOutput 'scripts/start-local-web.ps1' }

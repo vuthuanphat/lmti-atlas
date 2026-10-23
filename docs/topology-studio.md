@@ -1,5 +1,11 @@
 # LMTI Architecture Studio — MVP cục bộ
 
+> **Scope update 2026-10-23:** Qt desktop has been removed. Desktop screens,
+> screenshots and launcher instructions below are historical and no longer runnable.
+> Use the [React + Vite workspace](local-web.md) and [headless build](release-build.md).
+> Standalone CLI/SDK owners retain their documented boundaries; former Qt-only
+> features are not automatically available in the browser UI.
+
 Giao diện **C++/Qt Widgets**, domain core **C++20**, SQLite và SDK/MCP **Python**
 đã có trong repo. Đây là lát cắt đầu tiên của
 [kế hoạch tổng thể](LMTI_MASTER_PLAN.md), dành cho thiết kế kiến trúc và kết nối

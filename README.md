@@ -9,8 +9,9 @@
 Keep project knowledge on your machine. Give agents scoped context from project
 structure, reviewed summaries and eligible memory, with evidence you can inspect.
 The local browser workspace uses **React + Vite**, backed by a Node.js API and
-native C++/SQLite and Python owners. The Windows package retains Qt desktop as
-a fallback; the web interface runs in your browser.
+native C++/SQLite and Python owners. **React + Vite is the only product UI**;
+open it in your browser. The Qt desktop application has been removed. Windows
+x64 remains the packaging target for the local backend and browser launcher.
 
 `v0.2.0-alpha.1` is a local release candidate. See the
 [release notes](docs/releases/v0.2.0-alpha.1.md) for changes, compatibility and
@@ -54,7 +55,6 @@ live provider connection.*
   memory and evidence. Controlled observation replay is labeled as replay.
 - TypeScript project-memory/context/privacy CLI, reviewed lessons and publish
   checks. Go is retained as an experimental compatibility path.
-- Qt desktop fallback during the local-web transition.
 
 ## Windows package quickstart
 
@@ -67,8 +67,9 @@ compatible Microsoft C++ runtime are prerequisites; Node/Python are not bundled.
 & .\scripts\start-local-web.ps1 -DataDirectory 'C:\path\to\studio-data'
 ```
 
-The data directory must contain a Studio library and registered projects; use
-the [Qt fallback](docs/topology-studio.md) to create/register them when needed.
+The data directory must contain a Studio library and registered projects. Use
+the [local operator setup commands](docs/local-web.md#khởi-tạo-dự-án-không-cần-desktop)
+to create/register a project without a desktop application.
 The launcher opens the browser with a one-use code. Keep launch URLs and tokens
 private. Do not open `index.html` directly. The service binds `127.0.0.1` and
 must not be exposed through LAN, tunnels or port forwarding.
@@ -84,7 +85,7 @@ See [local web setup and scope grants](docs/local-web.md),
 
 ## Build from source
 
-Use a fresh checkout and the pinned pnpm version. Native/Qt integration also
+Use a fresh checkout and the pinned pnpm version. Native backend integration also
 requires the C++/Qt toolchain; see [release build instructions](docs/release-build.md).
 
 ```powershell

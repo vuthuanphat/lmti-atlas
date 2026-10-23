@@ -72,7 +72,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - name: Build TypeScript desktop bridge
+      - name: Build TypeScript owners
         shell: pwsh
         run: |
           pnpm install --frozen-lockfile --ignore-scripts
@@ -92,21 +92,18 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/package-local-web.ps1 -NativePackage build/studio -AdminPackage build/studio -OutputDirectory build/studio-web-ci
-          ./scripts/verify-local-web.ps1 -PackageDirectory build/studio-web-ci -NativeBuildDirectory build/native -QtRoot .tools/qt/6.12.0/msvc2022_64
+          ./scripts/verify-local-web.ps1 -PackageDirectory build/studio-web-ci -NativeBuildDirectory build/native
       - name: Windows TypeScript integration tests
         id: typescript
         shell: pwsh
         run: |
           $env:PATH = (Join-Path $PWD '.tools/qt/6.12.0/msvc2022_64/bin') + ';' + $env:PATH
           $env:QT_PLUGIN_PATH = Join-Path $PWD '.tools/qt/6.12.0/msvc2022_64/plugins'
-          $env:QT_QPA_FONTDIR = 'C:\Windows\Fonts'
           # The hardened native child uses only its package runtime. Mirror the
           # installed bin/ + plugins/ layout for the CTest executable directory.
           Get-ChildItem -LiteralPath build/studio/bin | ForEach-Object {
             Copy-Item -LiteralPath $_.FullName -Destination build/native/bin/Release -Recurse -Force
           }
-          # Qt Test belongs to test executables, not the runtime distribution.
-          Copy-Item -LiteralPath .tools/qt/6.12.0/msvc2022_64/bin/Qt6Test.dll -Destination build/native/bin/Release
           Copy-Item -LiteralPath build/studio/plugins -Destination build/native/bin -Recurse -Force
           $env:LMTI_STUDIO_TEST_CLI = Join-Path $PWD 'packages/cli/dist/index.js'
           New-Item -ItemType Directory -Force -Path build/ts-native-runtime | Out-Null
@@ -120,33 +117,15 @@ jobs:
         run: |
           $env:PATH = (Join-Path $PWD '.tools/qt/6.12.0/msvc2022_64/bin') + ';' + $env:PATH
           $env:QT_PLUGIN_PATH = Join-Path $PWD '.tools/qt/6.12.0/msvc2022_64/plugins'
-          $env:QT_QPA_FONTDIR = 'C:\Windows\Fonts'
           $env:LMTI_STUDIO_TEST_CLI = Join-Path $PWD 'packages/cli/dist/index.js'
           ctest --test-dir build/native -C Release --output-on-failure
-          if ($LASTEXITCODE) {
-            # Qt can lose stdout while exercising hardened child processes.
-            # Print only static test identifiers and numeric source locations,
-            # never assertion payloads, paths, credentials or session material.
-            foreach ($taskName in @('mcp-panel-tests.txt','mcp-binding-tests.txt')) {
-              $taskLog = Join-Path $PWD ('build/native/' + $taskName)
-              if (Test-Path -LiteralPath $taskLog) {
-                foreach ($taskLine in (Get-Content -LiteralPath $taskLog)) {
-                  $taskMatch = [regex]::Match($taskLine, '^FAIL!\s*:\s*([A-Za-z0-9_]+::[A-Za-z0-9_]+)')
-                  if ($taskMatch.Success) { Write-Output ('Qt failed test: ' + $taskMatch.Groups[1].Value) }
-                  $taskLocation = [regex]::Match($taskLine, '^\s*Loc:.*\(([0-9]+)\)\]')
-                  if ($taskLocation.Success) { Write-Output ('Qt failure line: ' + $taskLocation.Groups[1].Value) }
-                }
-              }
-            }
-            throw 'Native tests failed.'
-          }
+          if ($LASTEXITCODE) { throw 'Native tests failed.' }
       - name: Python integration tests
         if: ${{ !cancelled() && steps.typescript.outcome == 'success' }}
         shell: pwsh
         run: |
           $env:PATH = (Join-Path $PWD '.tools/qt/6.12.0/msvc2022_64/bin') + ';' + $env:PATH
           $env:QT_PLUGIN_PATH = Join-Path $PWD '.tools/qt/6.12.0/msvc2022_64/plugins'
-          $env:QT_QPA_FONTDIR = 'C:\Windows\Fonts'
           $env:PYTHONPATH = Join-Path $PWD 'python/src'
           $env:LMTI_TOPOLOGY_BINARY = Join-Path $PWD 'build/studio/bin/lmti-topology.exe'
           $env:LMTI_PROJECT_BINARY = Join-Path $PWD 'build/studio/bin/lmti-project.exe'

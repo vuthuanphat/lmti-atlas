@@ -1,5 +1,11 @@
 # LMTI — chạy thử review thay đổi có bằng chứng
 
+> **Scope update 2026-10-23:** Qt desktop has been removed. Desktop screens,
+> screenshots and launcher instructions below are historical and no longer runnable.
+> Use the [React + Vite workspace](local-web.md) and [headless build](release-build.md).
+> Standalone CLI/SDK owners retain their documented boundaries; former Qt-only
+> features are not automatically available in the browser UI.
+
 Ngày 2026-10-13. Đây là lát cắt kỹ thuật local dùng dữ liệu không nhạy cảm. Chưa phải bản
 thương mại hoặc kết quả nghiệm thu toàn bộ kế hoạch sáu tuần.
 

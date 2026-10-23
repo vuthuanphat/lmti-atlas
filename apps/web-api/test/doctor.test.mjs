@@ -8,7 +8,7 @@ import { verifyPackage, inspectPackage } from '../dist/doctor.js';
 const repo=fileURLToPath(new URL('../../../',import.meta.url));
 
 test('packaged doctor loads native runtime and checks every listed file without opening operator data',async()=>{
-  const pkg=process.env.LMTI_WEB_TEST_PACKAGE ?? join(repo,'build/studio-web03-20261014');
+  const pkg=process.env.LMTI_WEB_TEST_PACKAGE ?? join(repo,'build/lmti-v0.2.0-alpha.1-windows-x64');
   assert.ok(process.env.LMTI_WEB_TEST_PYTHON);
   const result=await inspectPackage(pkg,process.env.LMTI_WEB_TEST_PYTHON);
   const manifest=JSON.parse(await readFile(join(pkg,'manifest.json'),'utf8'));
@@ -44,7 +44,7 @@ test('reviewed mapping package components are optional together and refused when
   const root=await mkdtemp(join(repo,'build/web03-mapping-doctor-'));
   t.after(()=>{assert.ok(resolve(root).startsWith(resolve(repo,'build')+sep));return rm(root,{recursive:true,force:true});});
   const pkg=join(root,'package');
-  await cp(process.env.LMTI_WEB_TEST_PACKAGE ?? join(repo,'build/studio-web03-20261014'),pkg,{recursive:true});
+  await cp(process.env.LMTI_WEB_TEST_PACKAGE ?? join(repo,'build/lmti-v0.2.0-alpha.1-windows-x64'),pkg,{recursive:true});
   const manifestPath=join(pkg,'manifest.json');
   const manifest=JSON.parse(await readFile(manifestPath,'utf8'));
   const capability=['share/lmti/mapping-owner/index.js','share/lmti/mapping-owner/package.json',
@@ -79,11 +79,32 @@ test('a complete package refuses extra executable files but permits normal SDK b
   const root=await mkdtemp(join(repo,'build/web03-extra-'));
   t.after(()=>{assert.ok(resolve(root).startsWith(resolve(repo,'build')+sep));return rm(root,{recursive:true,force:true});});
   const pkg=join(root,'package');
-  await cp(process.env.LMTI_WEB_TEST_PACKAGE ?? join(repo,'build/studio-web03-20261014'),pkg,{recursive:true});
+  await cp(process.env.LMTI_WEB_TEST_PACKAGE ?? join(repo,'build/lmti-v0.2.0-alpha.1-windows-x64'),pkg,{recursive:true});
   const extra=join(pkg,'bin/unlisted.dll'); await writeFile(extra,'synthetic unlisted runtime');
   await assert.rejects(verifyPackage(pkg)); await rm(extra);
   const cache=join(pkg,'share/lmti/python/src/lmti_agent/__pycache__'); await mkdir(cache,{recursive:true});
   await writeFile(join(cache,'synthetic.cpython-314.pyc'),'synthetic cache');
   const result=await verifyPackage(pkg); const manifest=JSON.parse(await readFile(join(pkg,'manifest.json'),'utf8'));
   assert.equal(result.files,manifest.files.length);
+});
+
+test('browser package needs no desktop runtime and rejects a rehashed retired GUI',async(t)=>{
+  const root=await mkdtemp(join(repo,'build/web-only-doctor-'));
+  t.after(()=>{assert.ok(resolve(root).startsWith(resolve(repo,'build')+sep));return rm(root,{recursive:true,force:true});});
+  const pkg=join(root,'package');
+  await cp(process.env.LMTI_WEB_TEST_PACKAGE ?? join(repo,'build/lmti-v0.2.0-alpha.1-windows-x64'),pkg,{recursive:true});
+  const path=join(pkg,'manifest.json');
+  const manifest=JSON.parse(await readFile(path,'utf8'));
+  assert.equal(manifest.files.some(row=>/lmti-desktop|Qt6Gui|Qt6Widgets|plugins\/platforms|start-local-studio-fallback/i.test(row.file)),false);
+  await verifyPackage(pkg);
+  for(const file of ['bin/lmti-desktop.exe','bin/Qt6Widgets.dll','bin/Qt6Gui.dll',
+    'plugins/platforms/qwindows.dll','scripts/start-local-studio-fallback.ps1']) {
+    const payload=Buffer.from('synthetic retired component, never executed');
+    await mkdir(join(pkg,file,'..'),{recursive:true});
+    await writeFile(join(pkg,file),payload);
+    await writeFile(path,JSON.stringify({...manifest,files:[...manifest.files,
+      {file,sha256:createHash('sha256').update(payload).digest('hex')}]}));
+    await assert.rejects(verifyPackage(pkg));
+    await rm(join(pkg,file));
+  }
 });

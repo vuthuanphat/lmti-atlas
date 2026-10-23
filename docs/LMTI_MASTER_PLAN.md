@@ -1,5 +1,11 @@
 # LMTI — Kế hoạch tổng thể: quản trị MCP và lớp kết nối Agent với dự án
 
+**Chỉ đạo 23/10/2026:** loại bỏ ứng dụng Windows native Qt; React + Vite là
+giao diện duy nhất. Giữ backend C++/Qt Core/Sql và Python/TS, cùng khả năng chạy
+web trên Windows. [Quyết định thay thế](adr/2026-10-23-browser-only-ui.md). Các
+mốc Qt và điều kiện giữ desktop bên dưới là lịch sử; gate Windows sạch và người
+nghiệm thu độc lập cho web/backend vẫn mở.
+
 Ngày cập nhật: 2026-10-19. Phiên bản **r6** (giữ thứ tự build/nghiệm thu; cập nhật bằng chứng triển khai).
 
 **Chỉ đạo bổ sung của chủ sản phẩm ngày 19/10:** xây nền tảng bằng controlled

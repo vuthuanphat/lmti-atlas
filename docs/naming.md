@@ -10,7 +10,9 @@ The product is the understanding and controlled-interaction layer between
 external AI Agents and projects. Architecture Studio is its human interface;
 project memory and IoT context are capabilities within that product direction.
 
-Architecture Studio is the LMTI desktop application for topology/IoT modeling.
+Architecture Studio is the local React + Vite browser workspace. Its former
+Qt desktop application was removed on 2026-10-23; native C++/SQLite owners remain
+the backend. Windows browser/backend support is retained.
 Project memory, context, privacy, verification and reviewed lessons remain its
 independent foundations. The [master plan](LMTI_MASTER_PLAN.md) coordinates this
 direction; the [support map](component-support.md) distinguishes current and

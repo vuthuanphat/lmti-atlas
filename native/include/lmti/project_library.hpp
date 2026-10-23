@@ -14,6 +14,9 @@ struct LibraryEntry {
 std::vector<LibraryEntry> project_library(const QString &library);
 void import_recent_library(const QString &catalog, const QString &library);
 void remember_library_project(const QString &library, const LibraryEntry &entry);
+// Explicit local operator bootstrap. Reserves a new v1 library exclusively;
+// existing libraries require reviewed upgrades and the CAS registration API.
+void initialize_project_library(const QString &library, const LibraryEntry &entry);
 void pin_library_project(const QString &library, const QString &id, bool pinned);
 void link_library_folder(const QString &library, const QString &id, const QString &folder);
 void forget_library_project(const QString &library, const QString &id);
