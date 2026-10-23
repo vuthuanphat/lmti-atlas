@@ -55,7 +55,14 @@ function Invoke-VerificationNode([string]$Name,[string[]]$Arguments) {
     try { $ErrorActionPreference='Continue'; & $taskNode @Arguments *> $taskLog; $taskStatus=$LASTEXITCODE }
     finally { $ErrorActionPreference=$taskSavedPreference }
     $taskReport.checks+=@{name=$Name;passed=($taskStatus -eq 0);exitCode=$taskStatus;log=($Name+'.log')}
-    if($taskStatus -ne 0) { throw ('Verification failed at '+$Name+'; inspect its bounded synthetic log.') }
+    if($taskStatus -ne 0) {
+        # Hosted runners are disposable. Emit only TAP test names/locations,
+        # never assertion payloads, session URLs or raw fixture output.
+        Get-Content -LiteralPath $taskLog | Where-Object {
+            $_ -match '^\s*(not ok [0-9]+ - |failureType: |location: )'
+        } | Select-Object -First 40 | Write-Output
+        throw ('Verification failed at '+$Name+'; inspect its bounded synthetic log.')
+    }
 }
 Push-Location $taskRoot
 try {
