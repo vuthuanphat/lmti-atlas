@@ -1,4 +1,4 @@
-package secrets
+package credentialscan
 
 import "testing"
 
@@ -16,12 +16,12 @@ func TestSecretChecks(t *testing.T) {
 }
 
 func TestProtectedPaths(t *testing.T) {
-	for _, value := range []string{".env", "service/.env.local", `service\credentials\local.txt`, "internal/secrets/data.json", "internal/secrets/.env.go", "../src/file.go", ".lmti/memory.sqlite", "topology.sqlite-wal", ".aws/config"} {
+	for _, value := range []string{".env", "service/.env.local", `service\credentials\local.txt`, "internal/secrets/data.json", "internal/secrets/secrets.go", "internal/secrets/secrets_test.go", "internal/secrets/.env.go", "../src/file.go", ".lmti/memory.sqlite", "topology.sqlite-wal", ".aws/config"} {
 		if !IsProtectedPath(value) {
 			t.Fatalf("protected path accepted: %s", value)
 		}
 	}
-	for _, value := range []string{"internal/secrets/secrets.go", "internal/secrets/secrets_test.go", "src/app.go", ".lmti/README.md"} {
+	for _, value := range []string{"internal/credentialscan/credentialscan.go", "internal/credentialscan/credentialscan_test.go", "src/app.go", ".lmti/README.md"} {
 		if IsProtectedPath(value) {
 			t.Fatalf("public source blocked: %s", value)
 		}

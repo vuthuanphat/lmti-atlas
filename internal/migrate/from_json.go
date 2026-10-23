@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/vuthuanphat/lmti-atlas/internal/config"
-	"github.com/vuthuanphat/lmti-atlas/internal/secrets"
+	"github.com/vuthuanphat/lmti-atlas/internal/credentialscan"
 	"github.com/vuthuanphat/lmti-atlas/pkg/contract"
 )
 
@@ -47,7 +47,7 @@ func FromJSON(ctx context.Context, root string, cfg config.Config, options FromJ
 			report.SkippedFiles = append(report.SkippedFiles, candidate)
 			continue
 		}
-		if secrets.ContainsSecretLikeContent(string(content)) {
+		if credentialscan.ContainsSecretLikeContent(string(content)) {
 			report.BlockedFiles = append(report.BlockedFiles, candidate)
 			continue
 		}

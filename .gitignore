@@ -10,10 +10,6 @@
 *.cer
 *.token
 secrets/
-!internal/secrets/
-internal/secrets/*
-!internal/secrets/secrets.go
-!internal/secrets/secrets_test.go
 credentials/
 
 # Local runtime data

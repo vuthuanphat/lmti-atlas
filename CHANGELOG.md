@@ -32,6 +32,9 @@ compatibility, known-limitations and rollback information.
 
 ### Security
 
+- Move Go credential-scanning source to `internal/credentialscan`; remove obsolete
+  source-only exceptions for `internal/secrets`. Secret-path rules remain enforced.
+
 - Strengthen memory/migration boundaries and audit writer coordination while
   preserving permission checks, review requirements and failure behavior.
 - Upgrade Vitest to 4.1.12 for GHSA-qxg6-89mg-rqv8 / GHSA-xp26-3454-mjgp.

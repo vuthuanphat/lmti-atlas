@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/vuthuanphat/lmti-atlas/internal/config"
-	"github.com/vuthuanphat/lmti-atlas/internal/secrets"
+	"github.com/vuthuanphat/lmti-atlas/internal/credentialscan"
 	"github.com/vuthuanphat/lmti-atlas/internal/storage"
 	"github.com/vuthuanphat/lmti-atlas/pkg/contract"
 )
@@ -39,7 +39,7 @@ func Add(ctx context.Context, root string, cfg config.Config, request AddRequest
 	if strings.TrimSpace(request.Title) == "" || strings.TrimSpace(request.Content) == "" {
 		return AddResult{}, nil, []contract.BoundaryMessage{{Code: contract.ErrorConfigInvalid, Message: "Memory title and content are required."}}
 	}
-	if secrets.ContainsSecretLikeContent(request.Content) {
+	if credentialscan.ContainsSecretLikeContent(request.Content) {
 		return AddResult{}, nil, []contract.BoundaryMessage{{Code: contract.ErrorSecretDetected, Message: "Secret-like memory content was blocked and not stored."}}
 	}
 	privacy := request.Privacy

@@ -1,6 +1,6 @@
-// Package secrets implements conservative, local secret and protected-path checks.
+// Package credentialscan implements conservative, local secret and protected-path checks.
 // These heuristics supplement privacy policy; they do not prove content is safe.
-package secrets
+package credentialscan
 
 import (
 	"path"
@@ -44,10 +44,6 @@ func IsProtectedPath(value string) bool {
 		}
 	}
 	p = strings.TrimPrefix(path.Clean(p), "./")
-	// This source module is deliberately public; similarly named data is not.
-	if p == "internal/secrets/secrets.go" || p == "internal/secrets/secrets_test.go" {
-		return false
-	}
 	if p == ".lmti/readme.md" || p == ".lmti/agent_boundary.md" || p == ".lmti/layer.json" {
 		return false
 	}

@@ -8,23 +8,23 @@ import (
 	"strings"
 
 	"github.com/vuthuanphat/lmti-atlas/internal/config"
+	"github.com/vuthuanphat/lmti-atlas/internal/credentialscan"
 	"github.com/vuthuanphat/lmti-atlas/internal/gitcheck"
-	"github.com/vuthuanphat/lmti-atlas/internal/secrets"
 	"github.com/vuthuanphat/lmti-atlas/pkg/contract"
 )
 
 type Check struct {
-	ID      string `json:"id"`
-	Status  string `json:"status"`
-	Detail  string `json:"detail"`
-	Code    string `json:"code,omitempty"`
+	ID     string `json:"id"`
+	Status string `json:"status"`
+	Detail string `json:"detail"`
+	Code   string `json:"code,omitempty"`
 }
 
 type Report struct {
 	Result       string  `json:"result"`
-	TargetBranch string `json:"targetBranch"`
-	Origin       string `json:"origin"`
-	Branch       string `json:"branch"`
+	TargetBranch string  `json:"targetBranch"`
+	Origin       string  `json:"origin"`
+	Branch       string  `json:"branch"`
 	Checks       []Check `json:"checks"`
 }
 
@@ -97,7 +97,7 @@ func checkTrackedProtected(client gitcheck.Client, ctx context.Context, report *
 		return
 	}
 	for _, file := range strings.Split(files, "\n") {
-		if secrets.IsProtectedPath(file) {
+		if credentialscan.IsProtectedPath(file) {
 			addError(report, errors, "tracked protected files", contract.ErrorProtectedFileDetected, "Protected file is tracked: "+file)
 			return
 		}
@@ -111,7 +111,7 @@ func checkProtectedStatus(status string, report *Report, errors *[]contract.Boun
 			continue
 		}
 		path := strings.TrimSpace(line[3:])
-		if secrets.IsProtectedPath(path) {
+		if credentialscan.IsProtectedPath(path) {
 			addError(report, errors, "protected files", contract.ErrorProtectedFileDetected, "Protected file appears in Git status metadata: "+path)
 			return
 		}
