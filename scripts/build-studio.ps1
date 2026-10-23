@@ -1,6 +1,7 @@
 param(
     [string]$QtRoot = '',
     [string]$CMake = '',
+    [string]$PythonBinary = '',
     [string]$Configuration = 'Release',
     [string]$BuildDirectory = 'build\native',
     [string]$InstallDirectory = 'build\studio',
@@ -20,6 +21,13 @@ if (-not $CMake) {
     else { $CMake = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe' }
 }
 $CMake = (Resolve-Path -LiteralPath $CMake).Path
+if (-not $PythonBinary) { $PythonBinary = (Get-Command python -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source }
+$taskPython = (Resolve-Path -LiteralPath $PythonBinary).Path
+if (-not (Test-Path -LiteralPath $taskPython -PathType Leaf)) { throw 'Configure a trusted Python executable.' }
+for ($taskPythonPart = Get-Item -LiteralPath $taskPython; $null -ne $taskPythonPart;) {
+    if ($taskPythonPart.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Linked Python runtime refused; choose the real executable.' }
+    $taskPythonPart = if ($taskPythonPart -is [IO.FileInfo]) { $taskPythonPart.Directory } else { $taskPythonPart.Parent }
+}
 function Resolve-StudioOutput {
     param([string]$RelativePath)
     if ([IO.Path]::IsPathRooted($RelativePath)) { throw 'Use a build directory relative to this repository.' }
@@ -65,7 +73,7 @@ function Invoke-StudioCMake {
     if ($taskCMakeExit -ne 0) { throw "$FailureMessage Exit code: $taskCMakeExit" }
 }
 
-Invoke-StudioCMake -Arguments @('-S', $repoRoot, '-B', $nativeBuild, '-G', 'Visual Studio 17 2022', '-A', 'x64', "-DCMAKE_PREFIX_PATH=$QtRoot", "-DCMAKE_INSTALL_PREFIX=$studioInstall") -FailureMessage 'CMake configuration failed.'
+Invoke-StudioCMake -Arguments @('-S', $repoRoot, '-B', $nativeBuild, '-G', 'Visual Studio 17 2022', '-A', 'x64', "-DCMAKE_PREFIX_PATH=$QtRoot", "-DCMAKE_INSTALL_PREFIX=$studioInstall", "-DPython3_EXECUTABLE=$taskPython") -FailureMessage 'CMake configuration failed.'
 Invoke-StudioCMake -Arguments @('--build', $nativeBuild, '--config', $Configuration, '--parallel', '4', '--', '/nr:false') -FailureMessage 'Native build failed.'
 Invoke-StudioCMake -Arguments @('--install', $nativeBuild, '--config', $Configuration) -FailureMessage 'Local packaging failed.'
 # Source CLI resolution deliberately uses one trusted, fixed helper location.
