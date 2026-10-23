@@ -115,8 +115,12 @@ void copy_windows_access(const std::wstring& source_input, const std::wstring& t
     canonical_handle(source_file.value, source); canonical_handle(target_file.value, target);
     const auto before = access(source_file.value);
     const auto protection = (before.control & SE_DACL_PROTECTED) ? PROTECTED_DACL_SECURITY_INFORMATION : UNPROTECTED_DACL_SECURITY_INFORMATION;
-    if (SetSecurityInfo(target_file.value, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION | protection,
-        nullptr, nullptr, before.dacl, nullptr) != ERROR_SUCCESS) fail();
+    // Avoid asking Windows to recompute inheritance when the empty target
+    // already has the exact descriptor. Some inherited ACLs normalize during
+    // SetSecurityInfo even though no access change was required.
+    if (access(target_file.value).sddl != before.sddl &&
+        SetSecurityInfo(target_file.value, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION | protection,
+            nullptr, nullptr, before.dacl, nullptr) != ERROR_SUCCESS) fail();
     // Compare the complete Access SDDL (ACE order/masks/inheritance/protection),
     // not a lossy allow-list. Fail closed on any OS normalization difference.
     if (access(target_file.value).sddl != before.sddl || access(source_file.value).sddl != before.sddl ||
