@@ -152,12 +152,12 @@ jobs:
           $env:LMTI_PROJECT_BINARY = Join-Path $PWD 'build/studio/bin/lmti-project.exe'
           $env:PYTHONDONTWRITEBYTECODE = '1'
           $env:LMTI_AGENT_REPO = $PWD.Path
-          $env:LMTI_NODE_BINARY = (Get-Command node -CommandType Application).Source
+          $env:LMTI_NODE_BINARY = (Get-Command node -CommandType Application | Select-Object -First 1).Source
           $env:LMTI_KNOWLEDGE_CLI = Join-Path $PWD 'packages/cli/dist/index.js'
           $env:LMTI_MAPPING_COMPOSITION_PACKAGE = Join-Path $PWD 'build/studio-web-ci'
           $env:LMTI_MAPPING_COMPOSITION_NATIVE_FIXTURE = Join-Path $PWD 'build/native/bin/Release/lmti-mcp-binding-identity-tests.exe'
           $env:LMTI_MAPPING_COMPOSITION_NODE = $env:LMTI_NODE_BINARY
-          $env:LMTI_MAPPING_COMPOSITION_PYTHON = (Get-Command python -CommandType Application).Source
+          $env:LMTI_MAPPING_COMPOSITION_PYTHON = (Get-Command python -CommandType Application | Select-Object -First 1).Source
           & (Join-Path $PWD 'build/native/bin/Release/lmti-project-structure-snapshot-tests.exe') --emit-fixtures (Join-Path $PWD 'build/structure-ci-fixtures')
           if ($LASTEXITCODE) { throw 'Structure integration fixture creation failed.' }
           $env:LMTI_STRUCTURE_FIXTURE_DIR = Join-Path $PWD 'build/structure-ci-fixtures'
@@ -165,7 +165,7 @@ jobs:
           @{schema='lmti.agent.integration.v2';projectId='factory-monitor';site='factory-demo';target='external';knowledge=$null;observations=$null;structure=$true} | ConvertTo-Json | Set-Content -LiteralPath $env:LMTI_STRUCTURE_INTEGRATION_CONFIG -Encoding utf8
           node packages/cli/dist/index.js impact demo --out build/impact-ci-demo
           if ($LASTEXITCODE) { throw 'Impact integration fixture creation failed.' }
-          $env:LMTI_IMPACT_NODE = (Get-Command node -CommandType Application).Source
+          $env:LMTI_IMPACT_NODE = (Get-Command node -CommandType Application | Select-Object -First 1).Source
           $env:LMTI_IMPACT_CLI = Join-Path $PWD 'packages/cli/dist/index.js'
           $env:LMTI_IMPACT_CONFIG = Join-Path $PWD 'build/impact-ci-demo/launcher.json'
           python -m unittest discover -s python/tests -v
