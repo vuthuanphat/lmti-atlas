@@ -10,7 +10,8 @@ import { agentContextCommand } from "../src/agent-context";
 
 async function fixture() {
   const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "lmti-agent-knowledge-")));
-  await mkdir(path.join(root, "src")); await mkdir(path.join(root, "docs")); await mkdir(path.join(root, ".lmti"));
+  await mkdir(path.join(root, "src")); await mkdir(path.join(root, "docs"));
+  await mkdir(path.join(root, ".lmti"), { mode: 0o700 });
   await writeFile(path.join(root, "src/service.ts"), "export function publicBoundary() { return true; }\n");
   await writeFile(path.join(root, "docs/design.md"), "# Public design\nThe service preserves the reviewed architecture boundary.\n");
   const amf = await compileProject(root);

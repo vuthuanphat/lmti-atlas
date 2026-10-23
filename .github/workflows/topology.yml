@@ -10,7 +10,8 @@ permissions:
 
 jobs:
   native-and-python:
-    runs-on: windows-latest
+    # The build uses the VS 2022 generator and the matching Qt MSVC SDK.
+    runs-on: windows-2022
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

@@ -9,7 +9,7 @@ import { desktopBridgeCommand } from "../src/desktop-bridge";
 
 async function fixture(withMemory = true) {
   const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "lmti-knowledge-")));
-  await mkdir(path.join(root, ".lmti"));
+  await mkdir(path.join(root, ".lmti"), { mode: 0o700 });
   const amf = { version: "0.1.0", project: { name: "Synthetic source", root, compiledAt: "2026-10-12T00:00:00Z" },
     modules: [{ name: "Public module", summary: "Public architecture", privacy: "public" }, { name: "Private map", summary: "Withheld architecture", privacy: "internal" }],
     files: [], architecture: [], rules: [], summaries: [] };
