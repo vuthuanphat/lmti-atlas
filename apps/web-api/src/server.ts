@@ -4,6 +4,7 @@ import { loadAssets } from './assets.js';
 import { Owners, agentArguments, checkedProposal, type LaunchConfig, type NativeRead, type ProposalRequest } from './owners.js';
 import { ApiError, exact, hash, opaque, record, requireThat, safeRevision, secureEqual, strictJson } from './security.js';
 import { ProjectOperationsService } from './project-operations-service.js';
+import {libraryPublic,checkedLibraryState,type LibraryChange} from './library-management.js';
 import { LogicalHierarchyService } from './logical-hierarchy-service.js';
 import { PhysicalHierarchyService } from './physical-hierarchy-service.js';
 import { ProjectOperationRecovery } from './project-operations-recovery.js';
@@ -14,6 +15,8 @@ import { WriteOutcomeUnknown } from './process.js';
 import { BrokerRestartGuard } from './broker-guard.js';
 import { WriteCoordinator, type RecoveryToken } from './write-coordinator.js';
 import type { ClientId, ClientStatusDto, McpServerDto } from './contracts.js';
+import {contentChange,contentQuery} from './project-content.js';
+import type {ContentChange} from './project-content-contract.js';
 
 interface Session {key: string; created: number; touched: number; revoked: boolean}
 interface Preview {epoch: number; session: Session; project: string; client: ClientId; operation: 'apply'|'restore'; revision: number; binding: string; expected: string; expires: number; generated: NativeRead; subject: RecoverySubject}
@@ -53,6 +56,8 @@ export async function createLocalApi(config: LaunchConfig, clock: () => number =
   }
   const sessions = new Map<string,Session>(), launches = new Map<string,number>(), previews = new Map<string,Preview>(), cursors = new Map<string,Cursor>(), jobs = new Map<string,Job>();
   const proposalPreviews = new Map<string,ProposalPreview>(), cursorSecret = randomBytes(32);
+  const contentPreviews = new Map<string,{session:Session;project:string;epoch:number;expires:number;binding:string;request:ContentChange;subject:RecoverySubject}>();
+  const libraryPreviews = new Map<string,{session:Session;epoch:number;expires:number;request:LibraryChange;subject:RecoverySubject;review:Record<string,unknown>}>();
   let origin = '', bootstrapWindow = clock(), bootstrapTries = 0;
   const alive = (s: Session) => !s.revoked && clock()-s.created < 4*60*60*1000 && clock()-s.touched < 20*60*1000;
   const guard = (s: Session) => requireThat(!stopping && alive(s),'SESSION_EXPIRED');
@@ -63,6 +68,8 @@ export async function createLocalApi(config: LaunchConfig, clock: () => number =
     for (const [k,expires] of launches) if (expires < now) launches.delete(k);
     for (const [k,p] of previews) if (p.expires < now || !alive(p.session)) previews.delete(k);
     for (const [k,p] of proposalPreviews) if (p.expires < now || !alive(p.session)) proposalPreviews.delete(k);
+    for (const [k,p] of contentPreviews) if (p.expires < now || !alive(p.session)) contentPreviews.delete(k);
+    for (const [k,p] of libraryPreviews) if (p.expires < now || !alive(p.session)) libraryPreviews.delete(k);
     for (const [k,c] of cursors) if (c.expires < now || !alive(c.session)) cursors.delete(k);
     for (const [k,j] of jobs) if (j.finished && (now-j.finished > 10*60*1000 || !alive(j.session))) jobs.delete(k);
   }
@@ -71,7 +78,9 @@ export async function createLocalApi(config: LaunchConfig, clock: () => number =
   async function recoveryState(session:Session) {
     const authorize=(subject:RecoverySubject)=>{
       guard(session);
-      if(subject.kind==='legacy') {
+      if(subject.kind==='library_management') {
+        requireThat(owners.libraryManager&&subject.grantId===owners.recoveryDomainId(),'SCOPE_DENIED');
+      } else if(subject.kind==='legacy') {
         requireThat(subject.grantId===owners.recoveryDomainId()&&subject.projectId!==null,'SCOPE_DENIED');
         owners.scope(subject.projectId);
       } else if(subject.kind==='project_operations') {
@@ -87,8 +96,9 @@ export async function createLocalApi(config: LaunchConfig, clock: () => number =
       } else requireThat(false,'NOT_SUPPORTED');
     };
     return collectOriginalTargets(coordinator,{
-      guard:()=>guard(session),authorize,includeCoverage:!!owners.logicalHierarchyOwner||!!owners.physicalHierarchyOwner,
+      guard:()=>guard(session),authorize,includeCoverage:!!owners.logicalHierarchyOwner||!!owners.physicalHierarchyOwner||!!owners.libraryManager,
       inspect:async subject=>{
+        if(subject.kind==='library_management')return owners.libraryManager!.inspect(subject,()=>guard(session));
         if(subject.kind==='legacy') {
           const value=await owners.inspectLegacyRecovery(subject.target as unknown as LegacyOriginalTarget,
             {verify:true,guard:()=>guard(session)});
@@ -124,7 +134,7 @@ export async function createLocalApi(config: LaunchConfig, clock: () => number =
       requireThat(result.librarySchema!==null,'OWNER_UNAVAILABLE');
       return {digest:result.digest,librarySchema:result.librarySchema};
     },
-    onReconciled:() => { recoveryPreviews.clear(); previews.clear(); proposalPreviews.clear(); cursors.clear(); hierarchy?.invalidate(); physicalHierarchy?.invalidate(); },
+    onReconciled:() => { recoveryPreviews.clear(); previews.clear(); proposalPreviews.clear(); contentPreviews.clear(); cursors.clear(); hierarchy?.invalidate(); physicalHierarchy?.invalidate(); },
     onConfirmed:(_action,_project) => { previews.clear(); proposalPreviews.clear(); cursors.clear(); recoveryPreviews.clear(); hierarchy?.invalidate(); physicalHierarchy?.invalidate(); }
   }) : null;
   const hierarchy = owners.logicalHierarchyOwner ? new LogicalHierarchyService({
@@ -268,15 +278,16 @@ export async function createLocalApi(config: LaunchConfig, clock: () => number =
       const state = coordinator.snapshot();
       return {recoveryRequired:state.recoveryRequired,admitted:state.admitted,activeWrites:state.activeLeases,projectOperations:!!owners.projectOperationOwner};
     }
+    if(path==='/api/v1/library-management-capability'&&req.method==='GET')return {enabled:!!owners.libraryManager};
     if (path === '/api/v1/recovery-previews' && req.method === 'POST') {
-      requireThat(!owners.projectOperationOwner || hierarchy || physicalHierarchy,'NOT_SUPPORTED'); exact(await jsonBody(req),[]);
+      requireThat(!owners.projectOperationOwner || hierarchy || physicalHierarchy || owners.libraryManager,'NOT_SUPPORTED'); exact(await jsonBody(req),[]);
       requireThat(recoveryPreviews.size < 64,'BUSY');
       const token = coordinator.beginReconciliation(), evidence = await recoveryState(session); guard(session);
       requireThat(token.epoch === coordinator.snapshot().epoch,'CONFIG_CHANGED');
       const id = opaque(), expires = clock()+120000;
-      requireThat(!(hierarchy||physicalHierarchy)||evidence.coverage,'OWNER_UNAVAILABLE');
+      requireThat(!(hierarchy||physicalHierarchy||owners.libraryManager)||evidence.coverage,'OWNER_UNAVAILABLE');
       const result = {id,expiresAt:new Date(expires).toISOString(),items:evidence.items,
-        ...((hierarchy||physicalHierarchy)?{hierarchyItems:evidence.hierarchyItems,coverage:evidence.coverage}:{}),
+        ...((hierarchy||physicalHierarchy||owners.libraryManager)?{hierarchyItems:evidence.hierarchyItems,coverage:evidence.coverage}:{}),
         ...(physicalHierarchy?{physicalHierarchyItems:evidence.physicalHierarchyItems}:{}),priorOutcome:'unknown'};
       // Gate the complete success frame before retaining an actionable review.
       requireThat(Buffer.byteLength(JSON.stringify({apiVersion:1,requestId:'x'.repeat(43),ok:true,data:result}))<=256*1024,'LIMIT_EXCEEDED');
@@ -284,13 +295,13 @@ export async function createLocalApi(config: LaunchConfig, clock: () => number =
       return result;
     }
     if (path === '/api/v1/recoveries' && req.method === 'POST') {
-      requireThat(!owners.projectOperationOwner || hierarchy || physicalHierarchy,'NOT_SUPPORTED');
+      requireThat(!owners.projectOperationOwner || hierarchy || physicalHierarchy || owners.libraryManager,'NOT_SUPPORTED');
       const body = exact(await jsonBody(req),['previewId']); requireThat(typeof body.previewId === 'string');
       const review = recoveryPreviews.get(body.previewId);
       requireThat(review && review.session === session && review.expires >= clock(),'PREVIEW_EXPIRED');
       const evidence = await recoveryState(session); guard(session);
       requireThat(evidence.digest === review.digest,'CONFIG_CHANGED');
-      await coordinator.acknowledge(review.token); recoveryPreviews.clear(); previews.clear(); proposalPreviews.clear();
+      await coordinator.acknowledge(review.token); recoveryPreviews.clear(); previews.clear(); proposalPreviews.clear(); contentPreviews.clear(); libraryPreviews.clear();
       cursors.clear();operations?.invalidate();hierarchy?.invalidate(); physicalHierarchy?.invalidate();
       return {reviewed:true,priorOutcome:'unknown',freshReviewRequired:true};
     }
@@ -320,6 +331,102 @@ export async function createLocalApi(config: LaunchConfig, clock: () => number =
       const items = await owners.summaries([summaryId]); requireThat(items.length === 1,'OWNER_UNAVAILABLE');
       const item = exact(items[0],['id','name','projectRevision','profileRevision','linkedRoot']);
       return {...item,capabilities:capabilities(summaryId,item.linkedRoot)};
+    }
+    const libraryRoute=/^\/api\/v1\/library\/manage\/(state|previews|commit|previews\/[A-Za-z0-9_-]{43})$/.exec(path);
+    if(libraryRoute){
+      const manager=owners.libraryManager,action=libraryRoute[1];
+      if(action==='state'){
+        requireThat(req.method==='GET');if(!manager)return {enabled:false};
+        const state=await manager.state(()=>guard(session));guard(session);return {...manager.capabilities(),...libraryPublic(state)};
+      }
+      requireThat(manager,'SCOPE_DENIED');
+      if(action.startsWith('previews/')){
+        requireThat(req.method==='DELETE');const id=action.slice(9),p=libraryPreviews.get(id);requireThat(p&&p.session===session,'PREVIEW_EXPIRED');libraryPreviews.delete(id);return {rejected:true};
+      }
+      requireThat(req.method==='POST');const body=await jsonBody(req);
+      if(action==='previews'){
+        const epoch=coordinator.snapshot().epoch;coordinator.assertAllowed(epoch);
+        requireThat(libraryPreviews.size<128&&[...libraryPreviews.values()].filter(p=>p.session===session).length<16,'BUSY');
+        const state=await manager.state(()=>guard(session)),request=manager.change(body,state);
+        const reviewed=await manager.native('review',request,()=>guard(session));
+        const review=exact(reviewed,['ok','schema','action','id','label','sourcePreserved','requiresRelaunch']);
+        requireThat(review.schema==='lmti.library.management.v1'&&review.action===request.action&&review.id===request.id&&review.sourcePreserved===true&&typeof review.label==='string'&&typeof review.requiresRelaunch==='boolean','OWNER_UNAVAILABLE');
+        const subject=await manager.capture(request,state);await manager.verify(subject);guard(session);coordinator.assertAllowed(epoch);
+        const id=opaque(),expires=clock()+120000;libraryPreviews.set(id,{session,epoch,expires,request,subject,review});
+        return {id,expiresAt:new Date(expires).toISOString(),action:review.action,projectId:review.id,label:review.label,sourcePreserved:true,requiresRelaunch:review.requiresRelaunch};
+      }
+      const input=exact(body,['previewId']),p=libraryPreviews.get(String(input.previewId));
+      requireThat(p&&p.session===session&&p.expires>clock(),'PREVIEW_EXPIRED');requireThat(jobs.size<128,'BUSY');
+      const lease=coordinator.acquire('exclusive',p.request.id,p.epoch,p.subject);libraryPreviews.delete(String(input.previewId));
+      const id=opaque(),job:Job={session,state:'pending'};jobs.set(id,job);
+      const task=track((async()=>{
+        try{
+          await manager.verify(p.subject);guard(session);
+          const raw=await manager.native('commit',p.request,async()=>{
+            guard(session);coordinator.assertAllowed(p.epoch);requireThat(p.expires>clock(),'PREVIEW_EXPIRED');
+            await manager.verify(p.subject);await lease.beforeStart();await manager.verify(p.subject);guard(session);
+          });
+          try{
+            const reply=exact(raw,['ok','schema','action','id','label','sourcePreserved','requiresRelaunch','state']);
+            requireThat(reply.schema==='lmti.library.management.v1'&&reply.action===p.request.action&&reply.id===p.request.id&&reply.sourcePreserved===true&&typeof reply.requiresRelaunch==='boolean','OWNER_UNAVAILABLE');
+            checkedLibraryState(reply.state);
+          }catch{throw new WriteOutcomeUnknown();}
+          job.result={operationId:id,outcome:'committed',action:p.request.action,projectId:p.request.id,sourcePreserved:true,requiresRelaunch:raw.requiresRelaunch};job.state='succeeded';
+          libraryPreviews.clear();contentPreviews.clear();previews.clear();proposalPreviews.clear();cursors.clear();hierarchy?.invalidate();physicalHierarchy?.invalidate();operations?.invalidate();
+        }catch(error){job.code=error instanceof ApiError?error.code:'OWNER_UNAVAILABLE';job.state=error instanceof WriteOutcomeUnknown?'unknown':'failed';if(job.state==='unknown')job.result={operationId:id,outcome:'unknown'};}
+        finally{job.finished=clock();lease.release(job.state==='unknown'?'unknown':'known');}
+      })());
+      let timer:ReturnType<typeof setTimeout>|undefined;await Promise.race([task,new Promise<void>(resolve=>{timer=setTimeout(resolve,8000);})]);if(timer)clearTimeout(timer);
+      if(job.state==='failed')throw new ApiError(job.code as ApiError['code']);return job.state==='pending'?{operationId:id,outcome:'pending'}:job.result;
+    }
+    const contentRoute=/^\/api\/v1\/projects\/([A-Za-z][A-Za-z0-9._-]{0,63})\/content\/(capabilities|read|previews|commit|previews\/[A-Za-z0-9_-]{43})$/.exec(path);
+    if(contentRoute){
+      const project=contentRoute[1],action=contentRoute[2];owners.scope(project);
+      if(action==='capabilities'){requireThat(req.method==='GET');return {enabled:owners.contentEnabled(project)};}
+      requireThat(owners.contentEnabled(project),'SCOPE_DENIED');
+      if(action.startsWith('previews/')){
+        requireThat(req.method==='DELETE');const id=action.slice(9),p=contentPreviews.get(id);
+        requireThat(p&&p.session===session&&p.project===project,'PREVIEW_EXPIRED');contentPreviews.delete(id);return {rejected:true};
+      }
+      requireThat(req.method==='POST');const body=await jsonBody(req);
+      if(action==='read'){
+        const query=contentQuery(body),read=await owners.read(project);
+        const result=await owners.content(read,'read',query,()=>guard(session));guard(session);return result;
+      }
+      if(action==='previews'){
+        const request=contentChange(body),epoch=coordinator.snapshot().epoch;coordinator.assertAllowed(epoch);
+        requireThat(contentPreviews.size<256&&[...contentPreviews.values()].filter(p=>p.session===session).length<32,'BUSY');
+        const read=await owners.read(project);requireThat(read.binding.projectRevision===request.expectedRevision,'REVISION_CONFLICT');
+        const reviewed=await owners.content(read,'review',request as unknown as Record<string,unknown>,()=>guard(session));
+        const subject=await legacySubject(read,{kind:'project_content'});guard(session);coordinator.assertAllowed(epoch);
+        const id=opaque(),expires=clock()+120000;
+        const result={id,projectId:project,expiresAt:new Date(expires).toISOString(),...reviewed};
+        requireThat(Buffer.byteLength(JSON.stringify({apiVersion:1,requestId:'x'.repeat(43),ok:true,data:result}))<=256*1024,'LIMIT_EXCEEDED');
+        contentPreviews.set(id,{session,project,epoch,expires,binding:owners.bindingId(read),request,subject});return result;
+      }
+      const input=exact(body,['previewId']);requireThat(typeof input.previewId==='string');
+      const p=contentPreviews.get(input.previewId);requireThat(p&&p.session===session&&p.project===project&&p.expires>clock(),'PREVIEW_EXPIRED');
+      requireThat(jobs.size<128,'BUSY');const lease=coordinator.acquire('shared',project,p.epoch,p.subject);
+      contentPreviews.delete(input.previewId);const id=opaque(),job:Job={session,state:'pending'};jobs.set(id,job);
+      const task=track((async()=>{
+        try{
+          const read=await verifyLegacySubject(p.subject,session);
+          requireThat(owners.bindingId(read)===p.binding&&read.binding.projectRevision===p.request.expectedRevision,'REVISION_CONFLICT');
+          const result=await owners.content(read,'commit',p.request as unknown as Record<string,unknown>,async()=>{
+            await lease.beforeStart();await verifyLegacySubject(p.subject,session);guard(session);coordinator.assertAllowed(p.epoch);
+            requireThat(p.expires>clock(),'PREVIEW_EXPIRED');
+          });
+          job.result={operationId:id,outcome:'committed',projectRevision:result.revision,collection:p.request.collection,deviceActions:false};job.state='succeeded';
+          for(const [key,value]of contentPreviews)if(value.project===project)contentPreviews.delete(key);
+          hierarchy?.invalidate(project);physicalHierarchy?.invalidate(project);operations?.invalidate(project);
+        }catch(error){job.code=error instanceof ApiError?error.code:'OWNER_UNAVAILABLE';job.state=error instanceof WriteOutcomeUnknown?'unknown':'failed';
+          if(job.state==='unknown')job.result={operationId:id,outcome:'unknown',deviceActions:false};
+        }finally{job.finished=clock();lease.release(job.state==='unknown'?'unknown':'known');}
+      })());
+      let timer:ReturnType<typeof setTimeout>|undefined;
+      await Promise.race([task,new Promise<void>(resolve=>{timer=setTimeout(resolve,8000);})]);if(timer)clearTimeout(timer);
+      if(job.state==='failed')throw new ApiError(job.code as ApiError['code']);
+      return job.state==='pending'?{operationId:id,outcome:'pending',deviceActions:false}:job.result;
     }
     const agentRoute = /^\/api\/v1\/projects\/([A-Za-z][A-Za-z0-9._-]{0,63})\/(agent\/read|proposals\/(inspect|previews|commit)|proposals\/previews\/([A-Za-z0-9_-]{43}))$/.exec(path);
     if (agentRoute) {

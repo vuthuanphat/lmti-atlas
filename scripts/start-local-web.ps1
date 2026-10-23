@@ -6,6 +6,9 @@ param(
     [string]$AgentSite = '',
     [ValidateSet('external','local')][string]$AgentTarget = 'external',
     [string]$IntegrationConfig = '',
+    [switch]$ProjectContent,
+    [string[]]$ContentProjectId = @(),
+    [string]$LibraryManagementFile = '',
     [switch]$ProjectOperations,
     [string[]]$OperationProjectId = @(),
     [string]$CopyParent = '',
@@ -20,7 +23,7 @@ param(
     [switch]$NoBrowser
 )
 $ErrorActionPreference = 'Stop'
-foreach ($taskLocation in @($DataDirectory,$PackageDirectory,$IntegrationConfig,$CopyParent,$BackupParent)) {
+foreach ($taskLocation in @($DataDirectory,$PackageDirectory,$IntegrationConfig,$CopyParent,$BackupParent,$LibraryManagementFile)) {
     if ($taskLocation.Length -gt 1024 -or $taskLocation -match '[\x00-\x1f\x7f<>"|?*]' -or $taskLocation.Replace('\','/').StartsWith('//')) { throw 'Use local Studio data and package directories; network/device paths are refused before filesystem access.' }
     $taskWithoutDrive = $taskLocation -replace '^[A-Za-z]:[\\/]', ''
     if ($taskWithoutDrive.Contains(':')) { throw 'Alternate data streams and drive-relative paths are refused.' }
@@ -36,6 +39,9 @@ function Assert-ProjectIds([string[]]$Ids) {
     if ($Ids.Count -gt 500 -or @($Ids | Select-Object -Unique).Count -ne $Ids.Count) { throw 'Project grants must be unique and bounded.' }
     foreach ($taskId in $Ids) { if ($taskId -cnotmatch '^[A-Za-z][A-Za-z0-9._-]{0,63}$') { throw 'A project grant is invalid.' } }
 }
+Assert-ProjectIds $ContentProjectId
+if ($ProjectContent -and -not $ContentProjectId.Count) { throw 'Specify explicit ContentProjectId grants.' }
+if (-not $ProjectContent -and $ContentProjectId.Count) { throw 'ContentProjectId requires ProjectContent.' }
 Assert-ProjectIds $ProjectId
 Assert-ProjectIds $OperationProjectId
 Assert-ProjectIds $HierarchyProjectId
@@ -158,6 +164,19 @@ if ($ProjectId.Count -eq 0) {
     $taskCatalogValue = $taskCatalogText | ConvertFrom-Json
     if (-not $taskCatalogValue.ok) { throw 'The native library is unavailable.' }
     $taskConfig.allowedProjects = @($taskCatalogValue.items | ForEach-Object { $_.id })
+}
+if ($LibraryManagementFile) {
+    Assert-OperationSpelling $LibraryManagementFile
+    Assert-LocalOwnerPath $LibraryManagementFile
+    $taskLibraryGrantFile=Get-Item -LiteralPath $LibraryManagementFile
+    if ($taskLibraryGrantFile.PSIsContainer -or $taskLibraryGrantFile.Length -gt 12288) { throw 'Use a reviewed library management JSON file within 12 KiB.' }
+    $taskConfig.libraryManagement=Get-Content -LiteralPath $taskLibraryGrantFile.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+}
+if ($ProjectContent) {
+    foreach ($taskId in $ContentProjectId) {
+        if ($taskConfig.allowedProjects -cnotcontains $taskId) { throw 'Content edit IDs must be within explicit UI scope.' }
+    }
+    $taskConfig.projectContent = @{projectIds=@($ContentProjectId)}
 }
 if ($ProjectOperations) {
     Assert-ProjectIds @($taskConfig.allowedProjects)

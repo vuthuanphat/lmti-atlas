@@ -6,7 +6,7 @@ export type RecoveryJson = null|boolean|number|string|readonly RecoveryJson[]|
   {readonly [key:string]:RecoveryJson};
 export interface RecoverySubject {
   readonly version:1;
-  readonly kind:'legacy'|'logical_hierarchy'|'physical_hierarchy'|'project_operations';
+  readonly kind:'legacy'|'logical_hierarchy'|'physical_hierarchy'|'project_operations'|'library_management';
   readonly action:string;
   readonly projectId:string|null;
   readonly grantId:string;
@@ -18,7 +18,8 @@ export const recoveryLimits = Object.freeze({
   depth:16, collection:256, objectKeys:128, stringBytes:8192, nodes:8192,
 });
 const actions = Object.freeze({
-  legacy:['profile_save','desired_proposal','client_apply','client_restore'],
+  library_management:['create','register','link','pin','forget'],
+  legacy:['profile_save','desired_proposal','project_content','client_apply','client_restore'],
   logical_hierarchy:['logical-hierarchy-commit'],
   physical_hierarchy:['physical-hierarchy-commit'],
   project_operations:['copy-prepare','library-upgrade-v1','library-upgrade-v2',

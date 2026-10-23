@@ -55,6 +55,8 @@ struct LibraryUpgradeStatus {
     LibraryToken library;
 };
 LibraryInspection inspect_project_library(const QString &library);
+LibraryToken pin_library_project_cas(const QString &library, const QString &id, bool pinned,
+                                    bool expected_pinned, const LibraryToken &expected);
 // Explicit opt-in, verified typed v1 backup retained in a fresh UUID directory.
 LibraryUpgradeStatus upgrade_project_library(const QString &library, const QString &trusted_backup_parent,
                                             const LibraryToken &expected);

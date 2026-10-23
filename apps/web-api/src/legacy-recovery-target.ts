@@ -9,7 +9,7 @@ export interface PhysicalTarget {
   readonly state:'present'|'missing'|'unsupported';
   readonly chain:readonly (PhysicalIdentity|null)[];
 }
-export type LegacyEffect = {kind:'profile_save'|'desired_proposal'} |
+export type LegacyEffect = {kind:'profile_save'|'desired_proposal'|'project_content'} |
   {kind:'client_apply'|'client_restore'; client:'codex'|'cursor'};
 export interface LegacyOriginalTarget {
   readonly version:1; readonly action:LegacyEffect['kind']; readonly projectId:string; readonly domainId:string;
@@ -117,7 +117,7 @@ export async function verifyPhysicalTarget(value:PhysicalTarget, options:{allowM
 export function checkedLegacyEffect(value:unknown): LegacyEffect {
   const o = exact(value,value !== null && typeof value === 'object' &&
     ['client_apply','client_restore'].includes(String((value as {kind?:unknown}).kind)) ? ['kind','client'] : ['kind']);
-  if (o.kind === 'profile_save' || o.kind === 'desired_proposal') return freezeRecovery({kind:o.kind});
+  if (o.kind === 'profile_save' || o.kind === 'desired_proposal' || o.kind === 'project_content') return freezeRecovery({kind:o.kind});
   requireThat((o.kind === 'client_apply' || o.kind === 'client_restore') && (o.client === 'codex' || o.client === 'cursor'));
   return freezeRecovery({kind:o.kind,client:o.client});
 }
@@ -128,7 +128,7 @@ export function clientTargetNames(client:'codex'|'cursor') {
 }
 export function checkedLegacyTarget(value:unknown): LegacyOriginalTarget {
   const o = exact(value,['version','action','projectId','domainId','library','project','profiles','linkedRoot','client']);
-  requireThat(o.version === 1 && typeof o.action === 'string' && ['profile_save','desired_proposal','client_apply','client_restore'].includes(o.action) &&
+  requireThat(o.version === 1 && typeof o.action === 'string' && ['profile_save','desired_proposal','project_content','client_apply','client_restore'].includes(o.action) &&
     typeof o.projectId === 'string' && /^[A-Za-z][A-Za-z0-9._-]{0,63}$/.test(o.projectId) && digest(o.domainId));
   const l = exact(o.library,['schema','canonicalPath','uuid','physical']), p = exact(o.project,['schema','storeUuid','physical']);
   requireThat(typeof l.schema === 'number' && [1,2,3].includes(l.schema) &&

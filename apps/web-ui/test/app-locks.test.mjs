@@ -16,8 +16,8 @@ const bundle=await build({
 const module={exports:{}};
 new Function('require','module','exports',bundle.outputFiles[0].text)(app,module,module.exports);
 const {updateChildLock,hasChildLock}=module.exports;
-const keys=['agent','hierarchy','physical','operations'];
-const empty=()=>({agent:false,hierarchy:false,physical:false,operations:false});
+const keys=['agent','hierarchy','physical','operations','content'];
+const empty=()=>({agent:false,hierarchy:false,physical:false,operations:false,content:false,library:false});
 
 test('an unlocked sibling callback cannot release the pending hierarchy owner',()=>{
   let locks=updateChildLock(empty(),'hierarchy',true);
@@ -35,7 +35,7 @@ test('overlapping child owners stay locked through every acquisition and release
   const permute=values=>values.length===0?[[]]:values.flatMap(first=>
     permute(values.filter(value=>value!==first)).map(rest=>[first,...rest]));
   const permutations=permute(keys);
-  assert.equal(permutations.length,24);
+  assert.equal(permutations.length,120);
   for(const acquisition of permutations)for(const release of permutations){
     let locks=empty();
     for(const key of acquisition){

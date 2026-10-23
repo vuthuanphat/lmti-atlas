@@ -30,7 +30,7 @@ type RecoveryReview = {base:string;value:RecoveryPreview|LegacyRecovery};
 type Submission = {project:string|null;action:Action;result:Result|null;phase:'submitting'|'pending'|'confirmed'|'refused'|'unknown'};
 type Props = {project:string;language:'en'|'vi';onLockChange:(locked:boolean)=>void;onChanged:()=>void;disabled?:boolean;refreshKey?:number};
 export type RecoveryCoverage = RecoveryCoverageDto;
-type RecoveryCapabilities = Readonly<{logical:boolean;physical:boolean}>;
+type RecoveryCapabilities = Readonly<{logical:boolean;physical:boolean;library:boolean}>;
 
 class InvalidResponse extends Error { readonly code = 'INVALID_SOURCE_RESPONSE'; }
 function check(condition:unknown):asserts condition {if(!condition)throw new InvalidResponse();}
@@ -163,8 +163,8 @@ export function checkedRecoveryCoverage(v:unknown):RecoveryCoverage {
   const seen=new Set<string>();let total=0;
   for(const row of o.affectedScopes) {
     const r=exact(row,['kind','action','projectId','subjects']);
-    check(member(r.kind,['legacy','logical_hierarchy','physical_hierarchy','project_operations']));
-    check(r.kind==='legacy'?member(r.action,['profile_save','desired_proposal','client_apply','client_restore']):
+    check(member(r.kind,['legacy','logical_hierarchy','physical_hierarchy','project_operations','library_management']));
+    check(r.kind==='library_management'?member(r.action,['create','register','link','pin','forget']):r.kind==='legacy'?member(r.action,['profile_save','desired_proposal','project_content','client_apply','client_restore']):
       r.kind==='logical_hierarchy'?r.action==='logical-hierarchy-commit':
       r.kind==='physical_hierarchy'?r.action==='physical-hierarchy-commit':member(r.action,actions));
     const maintenance=r.action==='library-upgrade-v1'||r.action==='library-upgrade-v2';
@@ -187,11 +187,12 @@ export async function discoverRecoveryCapabilities(read:typeof request,signal?:A
   }
   // These are independent explicit grants. Failure of either discovery leaves
   // the complete recovery shape unknown; it cannot be treated as absence.
-  const [logical,physical]=await Promise.all([
+  const [logical,physical,library]=await Promise.all([
     available('/api/v1/logical-hierarchy-scopes'),
     available('/api/v1/physical-hierarchy-scopes'),
+    read('/api/v1/library-management-capability','GET',undefined,signal).then(value=>{const o=exact(value,['enabled']);check(boolean(o.enabled));return o.enabled;}),
   ]);
-  return Object.freeze({logical,physical});
+  return Object.freeze({logical,physical,library});
 }
 export function checkedOperationRecoveryPreview(v:unknown,project:string|null,legacy=false,requireCoverage=false,requirePhysical=false):RecoveryPreview|LegacyRecovery {
   if(legacy) {
@@ -280,7 +281,7 @@ export function ProjectOperationsPanel({project,language,onLockChange,onChanged,
   const [busy,setBusy]=useState(false),[locked,setLocked]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const [selectedProject,setSelectedProject]=useState(project);
   const [recoveryCapabilities,setRecoveryCapabilities]=useState<RecoveryCapabilities|null>(null);
-  const hierarchyEnabled=recoveryCapabilities===null?null:recoveryCapabilities.logical||recoveryCapabilities.physical;
+  const hierarchyEnabled=recoveryCapabilities===null?null:recoveryCapabilities.logical||recoveryCapabilities.physical||recoveryCapabilities.library;
   const lastRefresh=useRef(refreshKey);
   const [scopes,setScopes]=useState<Scopes|null>(null),[write,setWrite]=useState<WriteStatus|null>(null);
   const [status,setStatus]=useState<ProjectStatus|null>(null),[library,setLibrary]=useState<LibraryStatus|null>(null);

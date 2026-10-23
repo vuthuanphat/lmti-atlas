@@ -1,5 +1,10 @@
 # LMTI plan and evidence index
 
+**Current work:** [audit remediation](2026-10-23-audit-remediation.md) and
+[browser capability parity](../web-capabilities.md). The
+[browser-only ADR](../adr/2026-10-23-browser-only-ui.md) removes Qt desktop; old
+plans to retain it are superseded. Qt Core/Sql backend ownership remains.
+
 Updated 2026-10-14. The [master plan](../LMTI_MASTER_PLAN.md) is the only active
 product-priority and milestone authority. Earlier stage IDs are historical;
 unfinished gates below become work only through the master backlog. No report
@@ -11,7 +16,7 @@ gates still control release/cutover; they no longer block M2/M3 implementation.
 WEB-00 now has a synthetic
 browser study and contract; browser/owner UX review remains open. WEB-01 native
 façade/local API and WEB-02 React/package are implemented and tested through real
-owners. WEB-03 operator/client/cutover gates are deferred until the MVP is ready. Existing owners and Qt fallback
+owners. WEB-03 operator/client/cutover gates are deferred until the MVP is ready. Existing native/Python owners
 are retained. The first web
 slice uses a project MCP profile shared by Codex and Cursor, with
 project context, infrastructure and real read-only IoT remaining the broader
@@ -80,7 +85,7 @@ retroactively accept a later build, a user workflow or a business-value claim.
 
 | Record | Evidence scope |
 | --- | --- |
-| [WEB-02 React/package](2026-10-13-web-react-execution.md) | Real owner browser flows, package/Qt fallback, actual Codex web export, UI faults and dependency/build regressions; full cutover remains gated |
+| [WEB-02 React/package](2026-10-13-web-react-execution.md) | Real owner browser flows, historical package/desktop coexistence, actual Codex web export, UI faults and dependency/build regressions; full cutover remains gated |
 | [WEB-01 API](2026-10-13-web-api-execution.md) | Authenticated HTTP + real native/Python owner roundtrip; preview/export/apply/restore/handshake and native/Python regressions; backend evidence |
 | [WEB-00 study](2026-10-13-web-ui-execution.md) | Synthetic interactive source, DTO check and static HTTP boundary checks; Chrome blocked local navigation, visual/operator review open |
 | [Project MCP setup](2026-10-13-project-mcp-execution.md) | Profile/revision, parsers, merge/DPAPI/recovery, Qt setup/local probe and native-generated Codex read |

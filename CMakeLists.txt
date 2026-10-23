@@ -38,6 +38,8 @@ target_link_libraries(lmti_mcp_profile_storage PUBLIC lmti_mcp_profile_core Qt6:
 add_executable(lmti-topology native/cli/main.cpp)
 target_link_libraries(lmti-topology PRIVATE lmti_topology_storage)
 add_executable(lmti-project native/cli/project_main.cpp
+  native/cli/project_content.cpp
+  native/cli/library_management.cpp
   native/cli/project_mapping_observation.cpp native/cli/project_desired_asset.cpp)
 target_link_libraries(lmti-project PRIVATE lmti_project_storage)
 add_executable(lmti-mcp-admin native/cli/mcp_admin.cpp native/cli/project_operations.cpp

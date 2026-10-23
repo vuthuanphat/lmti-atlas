@@ -47,6 +47,9 @@ live provider connection.*
 
 - Local React workspace with English/Vietnamese presentation and authenticated
   loopback API; native C++/SQLite owners retain authority over project data.
+- Explicitly granted browser creation/registration, library pins/folder links and
+  reference removal; 13 typed content categories with review/confirmation. See
+  [library setup](docs/library-management.md) and [project editing](docs/project-studio.md).
 - Project library, software/hardware structure, desired configuration, reviewed
   proposals and controlled project copy/activation/recovery workflows.
 - MCP profile preview/apply/restore for Codex and Cursor configuration. Actual

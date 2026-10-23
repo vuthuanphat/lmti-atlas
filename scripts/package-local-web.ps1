@@ -62,14 +62,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Knowledge owner bundle failed.' }
 & node (Join-Path $taskRoot 'scripts/build-agent-mapping-owner.mjs') (Join-Path $taskOutput 'share/lmti/mapping-owner')
 if ($LASTEXITCODE -ne 0) { throw 'Mapping owner bundle failed.' }
 foreach ($taskScript in @('start-local-web.ps1','test-local-web-package.ps1')) { Copy-Item -LiteralPath (Join-Path $taskRoot "scripts/$taskScript") -Destination (Join-Path $taskOutput 'scripts') }
-$taskReadme = [IO.File]::ReadAllText((Join-Path $taskRoot 'docs/local-web.md'))
-$taskReadme = $taskReadme.Replace('](plans/', '](share/lmti/plans/').Replace('](benchmarks/', '](share/lmti/benchmarks/')
-[IO.File]::WriteAllText((Join-Path $taskOutput 'README.md'), $taskReadme, [Text.UTF8Encoding]::new($false))
-foreach ($taskDocument in @('plans/2026-10-19-integrated-mvp.md','benchmarks/2026-10-14-web-local-baseline.md')) {
-    $taskDocumentTarget = Join-Path (Join-Path $taskOutput 'share/lmti') $taskDocument
-    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $taskDocumentTarget) | Out-Null
-    Copy-Item -LiteralPath (Join-Path (Join-Path $taskRoot 'docs') $taskDocument) -Destination $taskDocumentTarget
-}
 $taskLicenseFolder=Join-Path $taskOutput 'share/lmti/third-party/web'
 New-Item -ItemType Directory -Force -Path $taskLicenseFolder | Out-Null
 foreach ($taskName in @('react','react-dom')) {
@@ -93,6 +85,8 @@ foreach ($taskInventory in @('dependencies.json','build-dependencies.cdx.json'))
     Copy-Item -LiteralPath (Join-Path $taskRoot "docs/third-party/$taskInventory") -Destination (Join-Path $taskOutput 'share/lmti/third-party')
 }
 $taskReleaseVersion = (Get-Content -LiteralPath (Join-Path $taskRoot 'package.json') -Raw | ConvertFrom-Json).version
+& node (Join-Path $taskRoot 'scripts/package-web-docs.mjs') $taskOutput
+if ($LASTEXITCODE -ne 0) { throw 'Public package documentation preparation failed.' }
 $taskReleaseCommit = (& git -C $taskRoot rev-parse HEAD)
 if ($LASTEXITCODE -ne 0 -or $taskReleaseCommit -cnotmatch '^[a-f0-9]{40}$') { throw 'A source commit is required for release provenance.' }
 [IO.File]::WriteAllText((Join-Path $taskOutput 'release.json'), (@{ schema='lmti.release.v1'; version=$taskReleaseVersion; sourceCommit=$taskReleaseCommit; pythonVersion='0.2.0a1'; nativeVersion='0.2.0'; platform='windows-x64'; publication='local-candidate' } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))

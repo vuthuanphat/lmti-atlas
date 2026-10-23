@@ -247,7 +247,9 @@ export interface LegacyRecoverySummaryDto {
 export interface HierarchyRecoverySummaryDto { readonly projectId: ProjectId; readonly projectRevision: Revision; }
 export interface PhysicalHierarchyRecoverySummaryDto { readonly projectId:ProjectId; readonly projectRevision:Revision; }
 export type RecoveryAffectedScopeDto =
-  | { readonly kind: 'legacy'; readonly action: 'profile_save' | 'desired_proposal' | 'client_apply' | 'client_restore';
+    | { readonly kind: 'library_management'; readonly action: 'create' | 'register' | 'link' | 'pin' | 'forget';
+        readonly projectId: ProjectId; readonly subjects: number }
+  | { readonly kind: 'legacy'; readonly action: 'profile_save' | 'desired_proposal' | 'project_content' | 'client_apply' | 'client_restore';
       readonly projectId: ProjectId; readonly subjects: number }
   | { readonly kind: 'logical_hierarchy'; readonly action: 'logical-hierarchy-commit';
       readonly projectId: ProjectId; readonly subjects: number }

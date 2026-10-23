@@ -366,19 +366,20 @@ const grantResponse={projects:[{projectId:project,allowInternal:false}]};
 const unsupported=()=>Object.assign(new Error('not configured'),{code:'NOT_SUPPORTED'});
 
 test('recovery discovery reads logical and physical grants independently without inferring either capability',async()=>{
-  for(const logical of [false,true])for(const physical of [false,true]){
+  for(const logical of [false,true])for(const physical of [false,true])for(const library of [false,true]){
     const calls=[],signal=new AbortController().signal;
     const result=await ui.discoverRecoveryCapabilities(async(path,method,body,receivedSignal)=>{
       calls.push(path);
       assert.equal(method,'GET');assert.equal(body,undefined);assert.equal(receivedSignal,signal);
+      if(path==='/api/v1/library-management-capability')return {enabled:library};
       const enabled=path==='/api/v1/logical-hierarchy-scopes'?logical:
         path==='/api/v1/physical-hierarchy-scopes'?physical:assert.fail('Unexpected capability route');
       if(!enabled)throw unsupported();
       return grantResponse;
     },signal);
-    assert.deepEqual(result,{logical,physical});
+    assert.deepEqual(result,{logical,physical,library});
     assert.equal(Object.isFrozen(result),true);
-    assert.deepEqual(calls.sort(),['/api/v1/logical-hierarchy-scopes','/api/v1/physical-hierarchy-scopes']);
+    assert.deepEqual(calls.sort(),['/api/v1/library-management-capability','/api/v1/logical-hierarchy-scopes','/api/v1/physical-hierarchy-scopes']);
   }
 });
 
@@ -388,13 +389,13 @@ test('failed or malformed capability discovery cannot become absence or an actio
       const failure=Object.assign(new Error('fixture failure'),{code});
       await assert.rejects(ui.discoverRecoveryCapabilities(async path=>{
         if(path===failedPath)throw failure;
-        return grantResponse;
+        return path==='/api/v1/library-management-capability'?{enabled:false}:grantResponse;
       }),error=>error===failure);
     }
     for(const invalid of [{projects:[]},{projects:[{projectId:project,allowInternal:'false'}]},
       {...grantResponse,physical:true}]){
       await assert.rejects(ui.discoverRecoveryCapabilities(async path=>
-        path===failedPath?invalid:grantResponse),{code:'INVALID_SOURCE_RESPONSE'});
+        path===failedPath?invalid:path==='/api/v1/library-management-capability'?{enabled:false}:grantResponse),{code:'INVALID_SOURCE_RESPONSE'});
     }
   }
 });

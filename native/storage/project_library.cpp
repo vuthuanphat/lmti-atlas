@@ -672,6 +672,18 @@ void link_library_folder(const QString &library,const QString &id,const QString 
         });
     });
 }
+LibraryToken pin_library_project_cas(const QString &library,const QString &id,bool pinned,
+                                    bool expected_pinned,const LibraryToken &token) {
+    return bounded([&] {
+        token_shape(token); validate_id(id.toStdString());
+        return write(library,[&](LibraryDb &db,const Snapshot &before) {
+            expected(before,token,token.schema); const auto row=find(before,id);
+            need(row && row->entry.pinned==expected_pinned,LibraryCode::Conflict);
+            db.change("UPDATE "+before.table()+" SET pinned=? WHERE id=?",{pinned?1:0,id});
+            return snapshot(db).view.token;
+        });
+    });
+}
 void forget_library_project(const QString &library,const QString &id) {
     bounded([&] {
         validate_id(id.toStdString());

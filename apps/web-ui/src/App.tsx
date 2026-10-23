@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type FormEvent, type RefObject } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useId, useRef, useState, type ReactNode, type FormEvent, type RefObject } from 'react';
 import type { ClientId, ClientPreviewDto, ClientStatusDto, CommitResultDto, ConnectionCheckDto, ManagedExportDto, McpServerDto, Page, ProfileDto, ProjectSummary } from '../../web-api/src/contracts';
 import { request, RequestError, signOut, subscribeSessionInvalidated } from './api';
 import { StructureView } from './StructureView';
+import { ProjectOnboarding } from './ProjectOnboarding';
 import { WorkspaceOverview } from './WorkspaceOverview';
 import './WorkspaceShell.css';
 import { Icon } from './Icon';
 import { Brand } from './Brand';
 import { SectionTabs } from './SectionTabs';
 import { ProjectOperationsPanel } from './ProjectOperationsPanel';
+const ProjectContentPanel=lazy(()=>import('./ProjectContentPanel').then(module=>({default:module.ProjectContentPanel})));
+const LibraryManagementPanel=lazy(()=>import('./LibraryManagementPanel').then(module=>({default:module.LibraryManagementPanel})));
 import { LogicalHierarchyPanel } from './LogicalHierarchyPanel';
 import { PhysicalHierarchyPanel } from './PhysicalHierarchyPanel';
 import { emptyChildLocks, hasChildLock, updateChildLock } from './ui-locks';
@@ -133,6 +136,8 @@ export function App({ ready }: { ready: Promise<void> }) {
   const lockHierarchy=useCallback((value:boolean)=>setChildLocks(locks=>updateChildLock(locks,'hierarchy',value)),[]);
   const lockPhysical=useCallback((value:boolean)=>setChildLocks(locks=>updateChildLock(locks,'physical',value)),[]);
   const lockOperations=useCallback((value:boolean)=>setChildLocks(locks=>updateChildLock(locks,'operations',value)),[]);
+  const lockContent=useCallback((value:boolean)=>setChildLocks(locks=>updateChildLock(locks,'content',value)),[]);
+  const lockLibrary=useCallback((value:boolean)=>setChildLocks(locks=>updateChildLock(locks,'library',value)),[]);
   const changed=useCallback(()=>{setNeedsReload(false);setRefresh(value=>value+1);},[]);
   const openRecovery=useCallback(()=>setTab('work'),[]);
   const structureLocked=hasChildLock(childLocks);
@@ -259,7 +264,7 @@ export function App({ ready }: { ready: Promise<void> }) {
   function reload() { setModal(null); setError(''); setNotice(''); setNeedsReload(false); setRefresh(v => v + 1); }
   const refreshButton = <button disabled={frozen} onClick={reload}>{t('Refresh')}</button>;
   const navigation = <nav aria-label={t('Workspace')}>{workspaceSections.map(({ id, label }) => <button key={id} className={`nav ${tab === id ? 'active' : ''}`} aria-current={tab === id ? 'page' : undefined} disabled={frozen || !!modal || session !== 'ready'} onClick={() => navigate(id)}><Icon name={id} /><span>{t(label)}</span></button>)}</nav>;
-  const projectSwitcher = <button className="project-switcher" aria-haspopup="dialog" aria-label={`${t('Choose a project')}: ${selected?.name ?? t('No projects registered')}`} disabled={writeBlocked || !!modal || session !== 'ready'} onClick={() => { setNavigationOpen(false); setQuery(''); setProjectPicker(true); }}><Icon name="project" size={22} /><span>{selected?.name ?? t('Choose a project')}</span><span className="chevron" aria-hidden="true">⌄</span></button>;
+  const projectSwitcher = <button className="project-switcher" aria-haspopup="dialog" aria-label={`${t('Choose a project')}: ${selected?.name ?? t('No projects in session scope')}`} disabled={writeBlocked || !!modal || session !== 'ready'} onClick={() => { setNavigationOpen(false); setQuery(''); setProjectPicker(true); }}><Icon name="project" size={22} /><span>{selected?.name ?? t('Choose a project')}</span><span className="chevron" aria-hidden="true">⌄</span></button>;
   const endSession = () => run(() => endLocalSession(signOut, clearLocalSession));
   const filteredProjects = projects.filter(p => `${p.name} ${p.id}`.toLowerCase().includes(query.toLowerCase()));
   return <div className="app-shell workspace-shell">
@@ -280,7 +285,9 @@ export function App({ ready }: { ready: Promise<void> }) {
           {frozen && <p className="notice owner-lock-notice" role="status">{t('An operation is in progress. Project and navigation are locked until its outcome is inspected.')}</p>}
           {(visited.work||tab==='work')&&<div hidden={tab!=='work'}>
             <div className="page-heading workspace-section-heading"><div><p className="eyebrow">{t('PROJECT WORKSPACE')}</p><h1>{t('Work')}</h1><p className="subtitle">{t('Review project operations and recover interrupted changes.')}</p></div></div>
+            <Suspense fallback={<p role="status">{t('Loading…')}</p>}><LibraryManagementPanel language={language} request={request} onLockChange={lockLibrary} onChanged={changed} visible={tab==='work'} disabled={busy||!!job||hasChildLock(childLocks,'library')} /></Suspense>
             <ProjectOperationsPanel project={project} language={language} onLockChange={lockOperations} onChanged={changed} refreshKey={refresh} disabled={busy||!!job||hasChildLock(childLocks,'operations')} />
+            <Suspense fallback={<p role="status">{t('Loading…')}</p>}><ProjectContentPanel key={project} project={project} language={language} request={request} onLockChange={lockContent} onChanged={changed} onRecovery={openRecovery} visible={tab==='work'} disabled={busy||!!job||hasChildLock(childLocks,'content')} /></Suspense>
             <section className="workspace-session section" aria-labelledby="session-activity"><div className="section-heading"><h2 id="session-activity">{t('Session activity')}</h2><span className="pill neutral">{t('This browser session')}</span></div>
               <p className="subtitle">{t('Only actions from this browser session appear here. Agent tool calls are not audited here.')}</p>
               <div className="timeline">{events.filter(e => e.project === project).map((event, i) => <article className="timeline-item" key={i}><h3>{t(event.text)}</h3><p>{event.detail} · <time dateTime={event.time}>{new Date(event.time).toLocaleTimeString(language === 'vi' ? 'vi-VN' : 'en-GB')}</time></p></article>)}{!events.some(e => e.project === project) && <p className="muted">{t('No activity in this session.')}</p>}</div>
@@ -301,7 +308,7 @@ export function App({ ready }: { ready: Promise<void> }) {
             <fieldset className="structure-owner-controls" disabled={frozen}><StructureView key={`${project}:${refresh}`} mode="knowledge" visible={tab==='knowledge'} project={project} request={request} language={language} /></fieldset>
           </div>}
 
-          {!projects.length && !['work', 'knowledge', 'architecture'].includes(tab) ? <div className="empty"><h1>{t(listLoaded ? 'No projects registered' : 'Unavailable')}</h1><p>{t('Open the Qt Studio fallback to create/link projects or edit topology.')}</p><button disabled={frozen} onClick={() => run(async () => { const page = await request<Page<ProjectSummary>>('/api/v1/projects?limit=50'); setProjects(page.items); setCursor(page.nextCursor); setProject(page.items[0]?.id ?? ''); setListLoaded(true); })}>{t('Refresh')}</button></div> : tab === 'overview' && selected ? <WorkspaceOverview project={selected} profile={profile} statuses={profile?.projectId === project ? statuses : {}} loading={loading} disabled={frozen || !!modal} language={language} onNavigate={navigate} /> : tab === 'agent' ? <>
+          {!projects.length && !['work', 'knowledge', 'architecture'].includes(tab) ? <ProjectOnboarding language={language} loaded={listLoaded} disabled={frozen} onSetup={() => navigate('work')} onRefresh={() => run(async () => { const page = await request<Page<ProjectSummary>>('/api/v1/projects?limit=50'); setProjects(page.items); setCursor(page.nextCursor); setProject(page.items[0]?.id ?? ''); setListLoaded(true); })} /> : tab === 'overview' && selected ? <WorkspaceOverview project={selected} profile={profile} statuses={profile?.projectId === project ? statuses : {}} loading={loading} disabled={frozen || !!modal} language={language} onNavigate={navigate} /> : tab === 'agent' ? <>
             <div className="page-heading"><div><p className="eyebrow">{t('PROJECT WORKSPACE')}</p><h1>{t('Agent')}</h1><p className="subtitle">{t('Manage MCP connections and configuration for each client.')}</p></div><button className="primary" disabled={!profile || writeBlocked || loading || profile.servers.length >= 32} onClick={() => { setError(''); setModal({ kind: 'edit' }); }}>＋ {t('Add connection')}</button></div>
             <div className="agent-layout"><div className="agent-connections"><div className="agent-profile"><Icon name="connection" size={32} /><div><h2>{t('Connection profile')} {profile ? `r${profile.revision}` : '—'}</h2><p>{t('Profile edits do not update client files until you review and apply.')}</p></div></div>
             <section className="section" aria-labelledby="connections"><div className="section-heading"><h2 id="connections">{t('Connections')}</h2><span className="muted">{profile ? `r${profile.revision} · ${profile.servers.length}/32` : t('Loading…')}</span></div>
@@ -336,7 +343,7 @@ export function App({ ready }: { ready: Promise<void> }) {
       <p className="subtitle">{t('Search only the projects already loaded in this session.')}</p><label className="sr-only" htmlFor="project-search">{t('Find project')}</label>
       <input id="project-search" className="project-search" placeholder={t('Find project')} value={query} onChange={e => setQuery(e.target.value)} disabled={busy} />
       <div className="project-picker-list">{filteredProjects.map(p => <button key={p.id} className="project-option" aria-pressed={p.id === project} disabled={writeBlocked} onClick={() => { setProject(p.id); setError(''); setNotice(''); setNeedsReload(false); setProjectPicker(false); }}><Icon name="project" /><span><strong>{p.name}</strong><small>{p.id}</small></span><span aria-hidden="true">{p.id === project ? '✓' : '○'}</span></button>)}</div>
-      {!filteredProjects.length && <p role="status" className="empty">{t(projects.length ? 'No matching projects in the loaded list.' : 'No projects registered')}</p>}
+      {!filteredProjects.length && <p role="status" className="empty">{t(projects.length ? 'No matching projects in the loaded list.' : 'No projects in session scope')}</p>}
       <div className="project-picker-footer"><span>{projects.length} {t('projects loaded')}</span>{cursor && <button disabled={frozen} onClick={() => run(loadMoreProjects)}>{t('Load more projects')}</button>}</div>
     </Dialog>}
     {modal && session === 'ready'  && <Dialog locked={busy} closeLabel={t('Close')} close={() => { setModal(null); if (!needsReload) setError(''); }} title={t(modal.kind === 'edit' ? modal.server ? 'Edit connection' : 'Add connection' : modal.kind === 'remove' ? 'Remove connection' : modal.preview.operation === 'apply' ? 'Preview changes' : 'Preview restore')}>

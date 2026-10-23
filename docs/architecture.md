@@ -2,54 +2,34 @@
 
 > Status: Local-alpha documentation
 
-Planning update 2026-10-13: [master r5](LMTI_MASTER_PLAN.md) prioritizes a
-[local browser UI](plans/2026-10-13-web-ui-transition.md) for project MCP setup.
-The [React/TypeScript MCP SPA](local-web.md) is implemented with a local package;
-default cutover remains gated. The [WEB-01 local Node API](plans/2026-10-13-web-api-execution.md)
-and native façade now have authenticated HTTP/native/Python evidence. The [ADR](adr/2026-10-13-web-presentation.md)
-preserves C++/SQLite ownership, Python stdio SDK/MCP and TS/Go compatibility.
-Profile/library console adapters now exist; Node is a thin coordinator, not a second
-domain/storage owner. Qt Widgets remains the compatibility/recovery UI until
-parity/cutover; Qt Core/Sql remains in native adapters.
+The current presentation is a **React + Vite local browser workspace** over a
+thin authenticated Node.js API. The [browser-only ADR](adr/2026-10-23-browser-only-ui.md)
+supersedes the former Qt Widgets UI. Qt Core/Sql remains in the typed C++/SQLite
+owners; no desktop executable, GUI runtime or fallback launcher is shipped.
 
-Project MCP profiles are shared by Codex/Cursor within the Agent–project layer. The
-[CP-01 slice](plans/2026-10-13-project-mcp-profile.md) implements a typed nonsecret
-profile owner, client-specific config adapters and Qt setup/preview/verification.
-The [profile ADR](adr/2026-10-13-project-mcp-profile.md) defines the implemented
-LMCP owner and Python file-format adapter. [Usage](project-mcp.md) records
-merge/apply/restore and probe limits. It is not an enforcement proxy; actual
-Cursor/operator/live-provider acceptance is open. Large-project structure,
-scoped context and real read-only IoT remain the
-broader direction; the human UI supports connections, source management and review.
-The implemented architecture below remains the local-alpha boundary.
-Observation/network/cache ownership needs an additional ADR; a direct collector
-or shared service is conditional on the pilot, not an existing capability.
+The browser/API coordinate explicit operator intent. Native owners retain
+project/library/profile schema, validation, transactions and revision authority.
+Python owns client config merge, current-user DPAPI backups/recovery and scoped
+stdio SDK/MCP. TypeScript owns compiled project knowledge, memory, privacy and
+reviewed impact/mapping stores. Go retains its separate experimental memory
+schema through the Node SQLite bridge. Node does not become another native
+storage owner, and Agents do not receive raw database handles or operator tokens.
 
-Before selecting CP-01, the owner authorized r3 execution. The [M1 design](plans/2026-10-13-agent-layer-m1.md)
-and [additive boundary ADR](adr/2026-10-13-agent-project-layer.md) specify the
-common envelope and local profile. Installed Codex MCP client feasibility has
-synthetic evidence. The additive [native read layer](agent-layer.md) now maps
-owner snapshots to common envelopes with lookup/paging/relations; existing
-interfaces below keep their schemas and owners. Cross-source/live acceptance is open.
+Project MCP profiles generate client configuration for Codex/Cursor. This is
+configuration management, not an enforcement proxy or proof of provider access.
+The integrated Agent reads native structure, mapped summaries and eligible memory
+with source/evidence/freshness. Controlled replay is distinct from live telemetry.
+Device execution and arbitrary shell tools are not part of this boundary.
 
-LMTI organizes project knowledge and system architecture for AI agents.
-Memory, context, privacy, verification and reviewed lessons are independent
-foundations; Architecture Studio owns the separate topology/IoT domain.
-The [master plan](LMTI_MASTER_PLAN.md) coordinates the current direction and the
-[support map](component-support.md) records component ownership.
+See [current capability parity](web-capabilities.md), [web setup](local-web.md),
+[Agent layer](agent-layer.md), [MCP profile](project-mcp.md) and the
+[remediation plan](plans/2026-10-23-audit-remediation.md). Historical desktop ADRs,
+screenshots and WEB-00 prototypes are evidence of former work, not active UI.
 
-The accepted local Studio MVP uses a Qt-independent C++20 domain, Qt Core/Sql
-storage and JSON adapters, Qt Widgets desktop, and Python SDK/MCP. The SDK calls
-the native CLI with fixed arguments and trusted launcher scope. Proposal review
-changes the document; save commits a revision. There is no device dispatch.
-See the [Studio guide](topology-studio.md) and [ADR](adr/2026-10-11-native-topology.md).
-
-TS remains the project-memory implementation. Go retains experimental memory
-compatibility with a separate schema and Node SQLite bridge. Topology and memory
-link through context/evidence, not shared schema or direct Agent store handles.
-Topology SQLite is unencrypted and supports only nonsecret public/internal
-metadata. Same-user launcher grants do not provide an OS sandbox or multi-user
-authorization. The Codex-first project-memory pipeline follows below.
+Topology/profile metadata is nonsecret-only. SQLite is not encrypted by this
+alpha; filesystem/egress controls are not encryption or an OS sandbox. DPAPI
+protects client backup/journal files, not all LMTI stores. External provider,
+clean-Windows and independent operator acceptance remain separately recorded.
 
 Naming note: LMTI is the product name. ATLAS is a legacy/internal codename, and
 Project Atlas is the compiled project map artifact produced by `lmti compile`.

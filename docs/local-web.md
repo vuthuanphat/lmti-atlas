@@ -83,6 +83,22 @@ browser hiện tại trong **Work → Session activity**, không phải nhật k
 còn có phần đọc bằng chứng bản sao/biên nhận do native owner giữ lại; phần này
 khác với timeline của phiên.
 
+## Quản lý thư viện trên web
+
+Truyền `-LibraryManagementFile` với JSON local đã duyệt để cấp thư mục metadata,
+thư mục nguồn và ứng viên dự án cụ thể. **Work → Project library** hỗ trợ tạo,
+đăng ký, ghim, đổi liên kết thư mục và gỡ tham chiếu; giữ nguyên database và file
+nguồn. Trình duyệt chỉ chọn key, không gửi đường dẫn. Xem [thiết lập thư viện](library-management.md).
+Dự án mới/liên kết mới cần mở lại launcher để xác lập quyền; không tự mở rộng phiên.
+
+## Sửa nội dung dự án trên web
+
+Cấp quyền tường minh bằng `-ProjectContent -ContentProjectId factory-monitor`
+cùng `-ProjectId factory-monitor`. Quyền này độc lập với quyền Agent, hierarchy
+và maintenance; mặc định không bật. Mở **Work → Project content** để thêm/sửa/gỡ
+13 nhóm nội dung qua xem trước → xác nhận → đọc lại. Xem [hướng dẫn dự án](project-studio.md).
+Không gửi lại thao tác có kết quả chưa xác định; kiểm tra trạng thái và phục hồi trước.
+
 ## Bật bản sao, kích hoạt và phục hồi
 
 Quyền này độc lập với `-AgentSite` và nguồn context. Truyền `-ProjectOperations`,

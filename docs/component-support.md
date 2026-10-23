@@ -6,17 +6,10 @@ been removed. Native C++/Qt Core/Sql, Python and TS owners remain. Desktop-speci
 rows below record previous implementation history, not available UI features.
 See the [superseding decision](adr/2026-10-23-browser-only-ui.md).
 
-Planning update 2026-10-13: [master r5](LMTI_MASTER_PLAN.md) prioritizes a
-[local browser UI transition](plans/2026-10-13-web-ui-transition.md), retaining a project
-MCP profile shared by Codex/Cursor, retaining the Agent–project/context direction
-and large-project/read-only IoT scope. CP-01 profile owner/client adapters and
-UI are local-alpha implementations; actual Cursor/operator/live providers and
-gateway enforcement remain unverified. This map separates
-implemented components from the proposed path. Old milestone names are historical.
-
-Date: 2026-10-11. This is the current implementation map under the
-[master plan](LMTI_MASTER_PLAN.md) and [native topology ADR](adr/2026-10-11-native-topology.md).
-It records local-alpha support, not a production certification.
+Current implementation map: 2026-10-23. See the [browser capability matrix](web-capabilities.md)
+and [audit remediation](plans/2026-10-23-audit-remediation.md). Dated execution
+records are historical evidence, not current product startup instructions.
+Local-alpha support does not imply production certification or live acceptance.
 
 ## Component map
 
@@ -29,14 +22,14 @@ It records local-alpha support, not a production certification.
 | M1 Agent/client feasibility | Contract/authority design, synthetic prototype and isolated native/installed Codex client smoke | Design and local client evidence; full M1/pilot acceptance open | [M1 packet](plans/2026-10-13-agent-layer-m1.md); [execution](plans/2026-10-13-agent-layer-m1-execution.md) |
 | Integrated cross-source Agent contract | Native structure, mapped public compiled summaries, explicitly disclosed owner-safe memory and read-only replay in a common envelope | Implemented local alpha with real process tests; live/model/pilot acceptance remains open | [Integrated evidence and setup](plans/2026-10-19-integrated-mvp.md); distinct owner versions, permissions and evidence |
 | Controlled replay observation adapter | Bounded replay read; sample/receive time, TTL, quality, sequence and source revocation; separate from project revisions/memory | Implemented and labeled controlled replay; **no live IoT adapter or evidence** | [Contract/tests](plans/2026-10-19-integrated-mvp.md); live source/protocol/pilot selection remains required |
-| `@atlas/drive` / `drive-desktop` / `DriveKnowledgePanel` | Isolated session OAuth and selected-folder local document reader | Experimental; publisher OAuth config/live verification required | [Drive guide](google-drive.md); synthetic provider/OAuth/protocol and Qt tests; no AI egress or document storage |
+| `@atlas/drive` / `drive-desktop` owner | Isolated session OAuth and selected-folder local document reader | Experimental; publisher OAuth config/live verification required | [Drive guide](google-drive.md); synthetic provider/OAuth/protocol tests; former Qt panel removed; no browser panel or live acceptance |
 | `native/core`, `native/include` | C++ typed topology, validation, revision/proposal rules | Active Studio development | Core CTest; no Qt dependency |
 | `native/storage`, `native/cli` | Qt Core/Sql SQLite transactions and JSON boundary | Active Studio development | `lmti-topology`; storage CTest |
 | `lmti_project_core`, `lmti_project_storage`, `lmti-project` | Typed software/hardware project/work domain and separate LMPR SQLite adapter | Experimental Projects MVP | Project CTest, bounded context/impact, immutable releases and work proposals |
-| `project_library` adapter / `ProjectLibraryView` | Separate LMLB local folder index and paged desktop view | Experimental library alpha | Folder creation/linking, pins/search/locate; no Agent authority or repository scanning; English/Vietnamese UI |
-| `apps/desktop` | Current Qt Widgets editor/MCP setup, document history and proposal review; fallback during planned web migration | Experimental local MVP; retained until WEB-03 | `lmti-desktop`; offscreen QtTest, manual operator check still needed |
-| `KnowledgePanel` / TS `desktop-bridge` | Versioned local knowledge boundary; TS memory owner retains storage/policy | Experimental U4 | Explicit source identity, read-only schema-v4 snapshot, bounded external task context, opt-in atomic lesson review |
-| Native snapshot / `ImpactPanel` / TS impact owner | Scoped saved LMPR projection; separate LMIP review/history storage | Experimental native impact slice | Exact document/binary boundary, declared-only graph, explicit operator verification; [execution record](plans/2026-10-13-native-impact-review.md) |
+| `project_library` adapter | Separate LMLB local folder index; browser project selection | Experimental library alpha | Browser create/register, approved folder linking, pins and reference removal; source preserved; database relocation remains explicit native recovery |
+| Former `apps/desktop` | Removed | No desktop executable, GUI runtime, fallback or QtTest UI | [Browser-only ADR](adr/2026-10-23-browser-only-ui.md) |
+| Browser Knowledge / TS compatibility bridge | Versioned local knowledge boundary; TS memory owner retains storage/policy | Experimental U4 | Explicit source identity, read-only schema-v4 snapshot, bounded external task context, opt-in atomic lesson review |
+| Native snapshot / TS impact owner (CLI/SDK/local review page) | Scoped saved LMPR projection; separate LMIP review/history storage | Experimental native impact slice | Exact document/binary boundary, declared-only graph, explicit operator verification; [execution record](plans/2026-10-13-native-impact-review.md) |
 | `python/src/lmti_topology` | Scoped SDK and MCP stdio transport | Experimental local MVP | `Client`; `python -m lmti_topology.mcp`; Python/native process tests |
 | `python/src/lmti_project`, `lmti_common` | Project/site grants and dependency-free shared validation; topology MCP transport reused explicitly | Experimental Projects MVP | Project SDK/MCP, non-writing review/blocked proposals; native/process integration tests |
 | TS `memory`, `privacy`, `compiler`, `graph`, `kernel`, `types` | Project understanding, memory lifecycle, context and policy | Active project-memory path | `lmti compile/context/preflight/memory/task`; TS tests |
@@ -62,8 +55,8 @@ Device dispatch is outside the first release.
 
 Software/hardware project management now has an implemented local-alpha slice:
 [Projects, software/releases/bindings and work/milestones](plans/2026-10-11-software-hardware-projects.md).
-Its screens live in ProjectWindow, which composes the existing topology editor;
-its versioned CLI/SDK does not replace TypeScript project memory. See the
+Its current browser content editor lives under Work and calls the typed native
+owner through an explicit project grant. Its CLI/SDK does not replace TypeScript memory. See the
 [Projects guide](project-studio.md) and [project ADR](adr/2026-10-11-project-document.md).
 The privacy-reviewed memory source bridge is implemented as a separate, explicitly
 connected adapter; unmapped knowledge references remain unloaded metadata. Explicit integrated mappings can return owner-filtered summaries. See its
@@ -77,14 +70,14 @@ Production/acceptance gates remain separate.
 | TS `compile`, `inspect`, kernel context | Project Atlas/AMF | Compiler artifact; regenerate from allowed source; memory is separate |
 | TS `remember`, legacy `memory --scope ... --legacy` paths | Legacy `.lmti/memory/*.json` | Compatibility readers/writers; preserve until lossless migration |
 | TS `context`, `preflight`, MCP reference reads | Memory owner readonly API; SQLite preferred if present, explicit JSON compatibility | No implicit merge/migration; privacy before ranking; compiler freshness checked; preflight audit remains |
-| TS `impact`, Qt Impact page, Python impact MCP, local review page | Separate LMIP SQLite schema 2; v1 read compatibility; synthetic/nonsecret only | Native owner snapshots, source review, immutable saved reports, append-only human outcomes; explicit backup migration; Agent reads only; [runbook](impact-review.md) |
+| TS `impact`, Python impact MCP, local review page (no React panel) | Separate LMIP SQLite schema 2; v1 read compatibility; synthetic/nonsecret only | Native owner snapshots, source review, immutable saved reports, append-only human outcomes; explicit backup migration; Agent reads only; [runbook](impact-review.md) |
 | Default TS `memory search/retrieve`, lessons, short notes, mind | `.lmti/memory/project-memory.sqlite`, schema v4 | Write/retrieval privacy gates; reviewed lessons and TTL/promotion |
 | TS `memory migrate-json --dry-run` | Read-only inventory of legacy scopes | Counts only, no content; writes blocked while lossless mapping is incomplete |
 | Go `memory`, `migrate from-json --dry-run` | `.lmti/memory.sqlite`, Go schema via Node bridge | Experimental independent inventory; import writes blocked pending lossless mapping |
 | Runtime session demo | InMemoryStore | Reference session state, not durable project memory |
 | Runtime Action View | `.lmti/actions/codex-actions.sqlite` | Local experimental observability; separate from memory and topology |
-| Desktop open/save; native scoped reads | Operator-selected topology SQLite, application/schema ID | Optimistic revision + transaction; public/internal nonsecret metadata only |
-| Desktop project/library adapters | LMPR document; LMLB local folder index; legacy LMCA recent catalog | Library refs never exported; one-time import preserves old catalog; removing a ref preserves source; UI language setting is separate |
+| Browser typed content/hierarchy; native scoped reads | Operator-selected topology SQLite, application/schema ID | Optimistic revision + transaction; public/internal nonsecret metadata only |
+| Native project/library adapters with browser selection | LMPR document; LMLB local folder index; legacy LMCA recent catalog | Library refs never exported; one-time import preserves old catalog; removing a ref preserves source; UI language setting is separate |
 | Python topology context/asset/proposal | Saved topology via native CLI | Launcher site/model target; proposal does not write DB or dispatch |
 
 One implementation owns each schema/version; transactions coordinate multiple

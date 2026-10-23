@@ -9,6 +9,9 @@ import { LogicalHierarchyRecovery } from './logical-hierarchy-recovery.js';
 import { PhysicalHierarchyOwner, type PhysicalHierarchyGrant } from './physical-hierarchy-owner.js';
 import { PhysicalHierarchyRecovery } from './physical-hierarchy-recovery.js';
 import type { BrokerGuardConfig } from './broker-guard.js';
+import { contentResponse } from './project-content.js';
+import type { ContentCollection } from './project-content-contract.js';
+import {LibraryManager,type LibraryManagementConfig} from './library-management.js';
 import type { ClientId, ProfileDto, McpServerDto } from './contracts.js';
 import { capturePhysicalTarget, checkedLegacyEffect, checkedLegacyTarget, clientTargetNames,
   freezeRecovery, recoveryValueKey, verifyPhysicalTarget } from './legacy-recovery-target.js';
@@ -21,6 +24,8 @@ export interface LaunchConfig {
   agentRead?: {entry: string; projects: AgentGrant[]};
   logicalHierarchy?: {projects: readonly LogicalHierarchyGrant[]};
   physicalHierarchy?: {projects: readonly PhysicalHierarchyGrant[]};
+  projectContent?: {projectIds: readonly string[]};
+  libraryManagement?: LibraryManagementConfig;
   projectOperations?: {copyParent: string; backupParent: string; projectIds: readonly string[]; allowLibraryUpgrade: boolean};
 }
 export interface AgentGrant {projectId: string; site: string; target: 'local'|'external'; integrationConfig: string|null}
@@ -189,6 +194,7 @@ function checkedOwnerFailure(value: unknown, write: boolean, python = false): Re
   throw new ApiError(result.code as ApiError['code']);
 }
 export class Owners {
+  libraryManager:LibraryManager|null=null;
   readonly pool = new ProcessPool();
   // A queued write cannot use its occupied main-pool slot to queue another
   // owner read. This dedicated one-slot verifier prevents that deadlock while
@@ -294,7 +300,7 @@ export class Owners {
     }
   }
   async validateLaunch() {
-    exact(this.config,['adminBinary','projectBinary','library','profiles','python','agentEntry','configOwner','allowedProjects','port','openBrowser',...(Object.hasOwn(this.config,'agentRead') ? ['agentRead'] : []),...(Object.hasOwn(this.config,'projectOperations') ? ['projectOperations'] : []),...(Object.hasOwn(this.config,'logicalHierarchy') ? ['logicalHierarchy'] : []),...(Object.hasOwn(this.config,'physicalHierarchy') ? ['physicalHierarchy'] : [])]);
+    exact(this.config,['adminBinary','projectBinary','library','profiles','python','agentEntry','configOwner','allowedProjects','port','openBrowser',...(Object.hasOwn(this.config,'agentRead') ? ['agentRead'] : []),...(Object.hasOwn(this.config,'projectOperations') ? ['projectOperations'] : []),...(Object.hasOwn(this.config,'logicalHierarchy') ? ['logicalHierarchy'] : []),...(Object.hasOwn(this.config,'physicalHierarchy') ? ['physicalHierarchy'] : []),...(Object.hasOwn(this.config,'projectContent') ? ['projectContent'] : []),...(Object.hasOwn(this.config,'libraryManagement') ? ['libraryManagement'] : [])]);
     requireThat(Number.isInteger(this.config.port) && this.config.port >= 0 && this.config.port <= 65535);
     requireThat(typeof this.config.openBrowser === 'boolean');
     requireThat(Array.isArray(this.config.allowedProjects) && this.config.allowedProjects.length <= 500 && this.permitted.size === this.config.allowedProjects.length && this.config.allowedProjects.every((s) => typeof s === 'string' && /^[A-Za-z][A-Za-z0-9._-]{0,63}$/.test(s)));
@@ -320,7 +326,15 @@ export class Owners {
         this.integrationPins.set(p.projectId,pin);
       }
     }
+    if(this.config.projectContent){
+      const value=exact(this.config.projectContent,['projectIds']);
+      requireThat(Array.isArray(value.projectIds)&&value.projectIds.length<=500&&new Set(value.projectIds).size===value.projectIds.length&&value.projectIds.every(id=>identifier(id)&&this.permitted.has(id)));
+    }
     // Every write family participates, including a legacy-only launcher. The
+    if(this.config.libraryManagement){
+      const manager=new LibraryManager(this.config.libraryManagement,this.config.projectBinary,this.config.library,this.pool,this.verificationPool,()=>this.recoveryDomainId());
+      await manager.validate();if(!this.libraryManager)this.libraryManager=manager;
+    }
     // fixed sibling helper is a trusted launch dependency, never a request path.
     const helper = join(dirname(this.config.configOwner),'web-broker-guard.py');
     await operationLocation(helper,'file');
@@ -333,6 +347,8 @@ export class Owners {
         .sort((a,b) => a.projectId < b.projectId ? -1 : a.projectId > b.projectId ? 1 : 0)} : null,
       projectOperations:this.config.projectOperations ? {...this.config.projectOperations,
         projectIds:[...this.config.projectOperations.projectIds].sort()} : null,
+      ...(this.config.projectContent ? {projectContent:{projectIds:[...this.config.projectContent.projectIds].sort()}} : {}),
+      ...(this.config.libraryManagement ? {libraryManagement:this.config.libraryManagement} : {}),
       // Absence preserves the exact legacy domain object and hash.
       ...(this.config.logicalHierarchy ? {logicalHierarchy:{projects:[...this.config.logicalHierarchy.projects]
         .sort((a,b) => a.projectId < b.projectId ? -1 : a.projectId > b.projectId ? 1 : 0)}} : {}),
@@ -614,6 +630,27 @@ export class Owners {
       '--entry',this.config.agentEntry,'--binary',this.config.projectBinary
     ],JSON.stringify(request),{write,guard});
     return checkedOwnerFailure(raw,write);
+  }
+  contentEnabled(project:string):boolean {
+    this.scope(project);return !!this.config.projectContent?.projectIds.includes(project);
+  }
+  async content(read:NativeRead,mode:'read'|'review'|'commit',request:Record<string,unknown>,guard?:RecoveryGuard){
+    const project=read.binding.id;requireThat(this.contentEnabled(project),'NOT_SUPPORTED');
+    await trustedPath(this.config.projectBinary,'file');
+    const raw=await this.pool.run(this.config.projectBinary,['content-'+mode,read.binding.database,project],JSON.stringify(request),{
+      cap:256*1024,projectProposalErrors:true,write:mode==='commit',guard:async()=>{
+        if(guard)await guard();await this.verifyBinding(read,true);
+        requireThat(this.contentEnabled(project),'SCOPE_DENIED');
+      }
+    });
+    const value=record(raw);
+    if(value.ok!==true){
+      const code=String(record(value.error).code);
+      if(mode==='commit'&&code==='OWNER_UNAVAILABLE')throw new WriteOutcomeUnknown();
+      throw new ApiError(codes.includes(code as never)?code as ApiError['code']:'OWNER_UNAVAILABLE');
+    }
+    try{return contentResponse(raw,mode,request.collection as ContentCollection);}
+    catch(error){if(mode==='commit')throw new WriteOutcomeUnknown();throw error;}
   }
   async inventory(): Promise<{id:string; name:string; bindingKey:string}[]> {
     const value = await this.native({action:'library'});

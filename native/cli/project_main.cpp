@@ -1,5 +1,7 @@
 #include "project_desired_asset.hpp"
 #include "project_mapping_observation.hpp"
+#include "project_content.hpp"
+#include "library_management.hpp"
 #include "lmti/project_store.hpp"
 #include "lmti/project_library.hpp"
 #include "lmti/storage.hpp"
@@ -161,6 +163,8 @@ int proposal_owner(const QStringList &args) {
 int main(int argc, char **argv) {
     QCoreApplication app(argc, argv);
     const auto args = app.arguments();
+    if(args.size()>1 && (args[1]=="content-read" || args[1]=="content-review" || args[1]=="content-commit"))
+        return project_content_main(args);
     if (args.size() > 1 && (args[1] == "desired-asset-read" || args[1] == "desired-asset-write" ||
                             args[1] == "proposal-format-read" || args[1] == "proposal-format-write"))
         return project_desired_asset_main(args);
@@ -171,6 +175,7 @@ int main(int argc, char **argv) {
         return proposal_owner(args);
     try {
         // Local operator setup only; neither command is exposed by Agent MCP or HTTP.
+        if (args.size()>=2 && (args[1]=="library-state"||args[1]=="library-recover"||args[1]=="library-review"||args[1]=="library-commit")) return library_management_main(args);
         if (args.size() == 5 && args[1] == "init-project") {
             if (QFileInfo::exists(args[2]))
                 throw lmti::Error("Project initialization requires a new file.");

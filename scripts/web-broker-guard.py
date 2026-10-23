@@ -97,7 +97,8 @@ def subject(value):
     if type(value) is not dict or set(value) != {"version", "kind", "action", "projectId", "grantId", "target"}:
         raise Unavailable()
     actions = {
-        "legacy": {"profile_save", "desired_proposal", "client_apply", "client_restore"},
+        "library_management": {"create", "register", "link", "pin", "forget"},
+        "legacy": {"profile_save", "desired_proposal", "project_content", "client_apply", "client_restore"},
         "logical_hierarchy": {"logical-hierarchy-commit"},
         "physical_hierarchy": {"physical-hierarchy-commit"},
         "project_operations": {"copy-prepare", "library-upgrade-v1", "library-upgrade-v2",

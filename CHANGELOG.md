@@ -16,7 +16,11 @@ compatibility, known-limitations and rollback information.
 - Scoped Python Agent SDK/MCP, evidence-bearing context and controlled replay.
 - Project MCP setup, hierarchy, reviewed proposals, project copy/activation and
   recovery workflows in the React + Vite workspace.
-- Local operator CLI for creating/registering projects without a desktop UI.
+- Local operator CLI and explicitly granted browser create/register, folder link,
+  pin and reference removal; source files are preserved and session scope stays fixed.
+- Thirteen typed browser content categories including work/milestones, software,
+  releases/bindings and verification, with review/confirmation and owner recovery.
+- English/Vietnamese onboarding separates empty libraries from failed owner reads.
 - Windows native audit ACL helper and artifact/third-party release materials.
 
 ### Changed
