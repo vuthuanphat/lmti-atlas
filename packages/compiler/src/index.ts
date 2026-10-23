@@ -528,6 +528,17 @@ async function scanProject(root: string, maxFileBytes: number, sourceBoundary: S
       });
     }
     if (beforeDirectory) {
+      // Directory timestamps can remain unchanged for rapid mutations. Recheck
+      // the observed inventory as well so a same-tick addition is not fresh.
+      const afterEntries = await fs.readdir(directory, { withFileTypes: true });
+      afterEntries.sort((a, b) => a.name.localeCompare(b.name));
+      if (entries.length !== afterEntries.length || entries.some((entry, index) => {
+        const after = afterEntries[index];
+        return entry.name !== after.name || entry.isFile() !== after.isFile() ||
+          entry.isDirectory() !== after.isDirectory() || entry.isSymbolicLink() !== after.isSymbolicLink();
+      })) {
+        throw new SourceScanError("source_changed_during_check");
+      }
       const afterDirectory = await fs.stat(directory);
       if (beforeDirectory.mtimeMs !== afterDirectory.mtimeMs || beforeDirectory.ctimeMs !== afterDirectory.ctimeMs || beforeDirectory.ino !== afterDirectory.ino) {
         throw new SourceScanError("source_changed_during_check");

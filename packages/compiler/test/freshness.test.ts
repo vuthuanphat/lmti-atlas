@@ -133,9 +133,15 @@ describe("compiled source freshness", () => {
     expect(readFile).not.toHaveBeenCalled();
   });
 
-  it("detects files added while the inventory is being enumerated", async () => {
+  it("detects files added during enumeration even when directory timestamps do not change", async () => {
     const root = await fixture();
     const amf = await compileProject(root);
+    const stat = fs.stat.bind(fs);
+    const directoryStat = await stat(root);
+    vi.spyOn(fs, "stat").mockImplementation((async (...args: unknown[]) => {
+      if (String(args[0]) === root) return directoryStat;
+      return (stat as (...params: unknown[]) => Promise<unknown>)(...args);
+    }) as typeof fs.stat);
     const readdir = fs.readdir.bind(fs);
     let added = false;
     vi.spyOn(fs, "readdir").mockImplementation((async (...args: unknown[]) => {
