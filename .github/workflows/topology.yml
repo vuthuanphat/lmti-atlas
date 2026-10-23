@@ -9,7 +9,43 @@ permissions:
   contents: read
 
 jobs:
+  windows-audit:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Verify Windows audit access and compiler freshness
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build/ci-tmp | Out-Null
+          $taskCanonical = & node -e "process.stdout.write(require('node:fs').realpathSync(process.argv[1]))" (Join-Path $PWD 'build/ci-tmp')
+          if ($LASTEXITCODE) { throw 'Cannot resolve the CI temporary directory.' }
+          $env:TEMP = $taskCanonical
+          $env:TMP = $taskCanonical
+          cmake -S native/privacy -B build/audit-acl -G 'Visual Studio 17 2022' -A x64
+          if ($LASTEXITCODE) { throw 'Audit helper configuration failed.' }
+          cmake --build build/audit-acl --config Release --parallel 2
+          if ($LASTEXITCODE) { throw 'Audit helper build failed.' }
+          ctest --test-dir build/audit-acl -C Release --output-on-failure
+          if ($LASTEXITCODE) { throw 'Native audit access tests failed.' }
+          pnpm install --frozen-lockfile --ignore-scripts
+          if ($LASTEXITCODE) { throw 'Workspace dependency installation failed.' }
+          pnpm build
+          if ($LASTEXITCODE) { throw 'TypeScript build failed.' }
+          pnpm test packages/privacy/test/audit.test.ts packages/compiler/test/freshness.test.ts --maxWorkers=2
+          if ($LASTEXITCODE) { throw 'Windows audit/freshness tests failed.' }
+
   native-and-python:
+    needs: windows-audit
     # The build uses the VS 2022 generator and the matching Qt MSVC SDK.
     runs-on: windows-2022
     timeout-minutes: 40

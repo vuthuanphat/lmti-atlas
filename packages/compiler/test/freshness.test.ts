@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { checkCompiledAmfFreshness, compileProject } from "../src/index";
 
 async function fixture(): Promise<string> {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "lmti-freshness-"));
+  const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "lmti-freshness-")));
   await fs.writeFile(path.join(root, "source.ts"), "export const value = 1;\n");
   return root;
 }
@@ -146,7 +146,9 @@ describe("compiled source freshness", () => {
       }
       return entries;
     }) as typeof fs.readdir);
-    expect(await checkCompiledAmfFreshness(amf, { cwd: root })).toMatchObject({
+    const result = await checkCompiledAmfFreshness(amf, { cwd: root });
+    expect(added).toBe(true);
+    expect(result).toMatchObject({
       status: "unknown", reasons: ["source_changed_during_check"]
     });
   });
