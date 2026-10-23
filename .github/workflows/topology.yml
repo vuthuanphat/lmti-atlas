@@ -29,7 +29,7 @@ jobs:
       - name: Build TypeScript desktop bridge
         shell: pwsh
         run: |
-          pnpm install --frozen-lockfile --ignore-scripts --ignore-scripts
+          pnpm install --frozen-lockfile --ignore-scripts
           if ($LASTEXITCODE) { throw 'Workspace dependency installation failed.' }
           pnpm build
           if ($LASTEXITCODE) { throw 'TypeScript build failed.' }
@@ -58,13 +58,15 @@ jobs:
           Get-ChildItem -LiteralPath build/studio/bin | ForEach-Object {
             Copy-Item -LiteralPath $_.FullName -Destination build/native/bin/Release -Recurse -Force
           }
+          # Qt Test belongs to test executables, not the runtime distribution.
+          Copy-Item -LiteralPath .tools/qt/6.12.0/msvc2022_64/bin/Qt6Test.dll -Destination build/native/bin/Release
           Copy-Item -LiteralPath build/studio/plugins -Destination build/native/bin -Recurse -Force
           $env:LMTI_STUDIO_TEST_CLI = Join-Path $PWD 'packages/cli/dist/index.js'
           New-Item -ItemType Directory -Force -Path build/ts-native-runtime | Out-Null
           Copy-Item -LiteralPath build/native/bin/Release -Destination build/ts-native-runtime/bin -Recurse -Force
           Copy-Item -LiteralPath build/studio/plugins -Destination build/ts-native-runtime/plugins -Recurse -Force
           $env:LMTI_MAPPING_CURRENT_NATIVE_RUNTIME = Join-Path $PWD 'build/ts-native-runtime'
-          pnpm test
+          pnpm test --maxWorkers=2
           if ($LASTEXITCODE) { throw 'Windows TypeScript tests failed.' }
           ctest --test-dir build/native -C Release --output-on-failure
           if ($LASTEXITCODE) { throw 'Native tests failed.' }

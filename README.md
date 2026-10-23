@@ -4,14 +4,43 @@
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![CI](https://img.shields.io/github/actions/workflow/status/vuthuanphat/lmti-atlas/ci.yml?branch=main&label=CI)
 
-**LMTI gives AI coding agents scoped project understanding, reviewed memory and
-evidence through local owners.** Its browser workspace manages projects,
-architecture and MCP client setup on the same machine.
+### Local-first project context for AI coding agents
+
+Keep project knowledge on your machine. Give agents scoped context from project
+structure, reviewed summaries and eligible memory, with evidence you can inspect.
+The local browser workspace uses **React + Vite**, backed by a Node.js API and
+native C++/SQLite and Python owners. The Windows package retains Qt desktop as
+a fallback; the web interface runs in your browser.
 
 `v0.2.0-alpha.1` is a local release candidate. See the
 [release notes](docs/releases/v0.2.0-alpha.1.md) for changes, compatibility and
 open acceptance gates. Hosted CI status belongs to the public branch, not this
 unpublished candidate. Public alpha APIs and storage contracts can change.
+
+[Build from source](#build-from-source) ·
+[Windows setup](docs/local-web.md) ·
+[Validation and open gates](docs/releases/v0.2.0-alpha.1-qa.md) ·
+[Contribute](CONTRIBUTING.md)
+
+![LMTI local workspace showing a synthetic sample project](docs/media/launch/workspace.png)
+
+*Actual React workspace, captured with synthetic test data. Client configuration
+and recorded client use are shown separately; this image does not certify a
+live provider connection.*
+
+## Project context, with evidence
+
+- **Understand the project.** Explore declared structure and scoped context from
+  reviewed code/document summaries and eligible memory.
+- **Inspect the evidence.** Trace context to its sources and distinguish reviewed
+  knowledge from pending proposals.
+- **Control the scope locally.** Select the project and allowed scope. External
+  AI clients and providers retain their own permissions and data handling;
+  local-first does not guarantee that an external model receives no data.
+
+![Knowledge view with reviewed summaries, memory and evidence](docs/media/launch/knowledge.png)
+
+*Synthetic code, document and memory sources in the implemented Knowledge view.*
 
 ## Available in the candidate
 
@@ -43,6 +72,10 @@ the [Qt fallback](docs/topology-studio.md) to create/register them when needed.
 The launcher opens the browser with a one-use code. Keep launch URLs and tokens
 private. Do not open `index.html` directly. The service binds `127.0.0.1` and
 must not be exposed through LAN, tunnels or port forwarding.
+
+Start with a disposable sample project. Keep backups before trying existing
+data. Public downloads will be linked here after the release acceptance gates
+are complete; a release candidate is not a published download.
 
 See [local web setup and scope grants](docs/local-web.md),
 [project MCP configuration](docs/project-mcp.md),

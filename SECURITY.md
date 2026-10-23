@@ -16,15 +16,14 @@ There are no stable long-term support branches yet.
 
 ## Reporting A Vulnerability
 
-Use GitHub **Private Vulnerability Reporting** once enabled by the maintainer:
+Use GitHub **Private Vulnerability Reporting**:
 https://github.com/vuthuanphat/lmti-atlas/security/advisories/new
 
-As checked on 2026-10-22, private vulnerability reporting is **disabled**. Enabling
-and verifying that channel is a gate before public release. This local candidate
-does not change repository settings and does not invent a security email address.
-Until a private channel is available, a public issue may request private contact
-using only a neutral sentence. Never include exploit details, tokens, private
-paths, customer data, raw memory or sensitive logs in public issues.
+Private vulnerability reporting was enabled and verified through the GitHub API
+on 2026-10-23. Report vulnerabilities through the private channel above. Never
+include exploit details, tokens, private paths, customer data, raw memory or
+sensitive logs in public issues. If the private channel is unavailable, a public
+issue may request private contact using only a neutral sentence.
 
 ## Security Principles
 
