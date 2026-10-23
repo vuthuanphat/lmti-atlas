@@ -28,7 +28,12 @@ $taskBuildPrefix=[IO.Path]::GetFullPath((Join-Path $taskRoot 'build'))+[IO.Path]
 foreach($taskLocation in @($taskPackage,$taskNative)) { if(-not $taskLocation.StartsWith($taskBuildPrefix,[StringComparison]::OrdinalIgnoreCase)) { throw 'Use synthetic build/package directories inside repository build/.' } }
 $taskEvidence=Join-Path $taskRoot ('build/web-verification-'+[Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $taskEvidence|Out-Null
+$taskTemporary=Join-Path $taskEvidence 'temporary'
+New-Item -ItemType Directory -Path $taskTemporary|Out-Null
 $taskEnvironment=@{
+    # Some Windows hosts expose TEMP through an 8.3 alias. Fixtures must use
+    # canonical owned paths so positive controls reach the real boundary.
+    TEMP=$taskTemporary;TMP=$taskTemporary
     LMTI_WEB_TEST_PYTHON=$taskPython;LMTI_WEB_TEST_PACKAGE=$taskPackage
     LMTI_WEB_TEST_PRODUCER=$taskProducer;LMTI_WEB_TEST_QT_PROBE=$taskProbe;LMTI_WEB_TEST_OFFSCREEN=$taskOffscreen
     LMTI_WEB_TEST_BINDING_PRODUCER=$taskBindingProducer
@@ -40,7 +45,7 @@ $taskEnvironment=@{
     LMTI_WEB_TEST_HIERARCHY_ADMIN=(Join-Path $taskPackage 'bin/lmti-mcp-admin.exe')
     LMTI_WEB_TEST_UPGRADE_WRITE_ADMIN=$taskWriteAdmin
     LMTI_WEB_TEST_POWERSHELL=(Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe')
-    LMTI_WEB_TEST_TMP=(Join-Path $taskEvidence 'temporary')
+    LMTI_WEB_TEST_TMP=$taskTemporary
     LMTI_WORKSPACE_TEST_UI_ROOT=(Join-Path $taskRoot 'apps/web-ui')
     LMTI_STRUCTURE_TEST_UI_ROOT=(Join-Path $taskRoot 'apps/web-ui')
     LMTI_HIERARCHY_TEST_UI_ROOT=(Join-Path $taskRoot 'apps/web-ui')
