@@ -87,9 +87,13 @@ int main() {
         fs::remove_all(root);
         std::cout << "audit ACL native: 9 checks passed\n";
         return 0;
-    } catch (...) {
+    } catch (const std::exception& error) {
         // Preserve the synthetic fixture on failure; output no path or ACL data.
         std::cerr << "audit ACL native check failed at stage " << stage << "\n";
+        const std::string message(error.what());
+        constexpr std::string_view prefix = "AUDIT_ACCESS_PRESERVATION_FAILED_AT_";
+        if (message.starts_with(prefix) && message.find_first_not_of("0123456789", prefix.size()) == std::string::npos)
+            std::cerr << message << "\n";
         return 1;
     }
 }

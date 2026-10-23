@@ -6,12 +6,18 @@
 #include <sddl.h>
 #include <algorithm>
 #include <memory>
+#include <source_location>
 #include <stdexcept>
 #include <string_view>
 
 namespace lmti::audit {
 namespace {
-[[noreturn]] void fail() { throw std::runtime_error("AUDIT_ACCESS_PRESERVATION_FAILED"); }
+[[noreturn]] void fail(const std::source_location location = std::source_location::current()) {
+    // Numeric source locations aid synthetic test diagnostics without exposing
+    // paths, account identifiers, descriptors or OS error text. The IPC helper
+    // still catches all exceptions and emits no diagnostic payload.
+    throw std::runtime_error("AUDIT_ACCESS_PRESERVATION_FAILED_AT_" + std::to_string(location.line()));
+}
 struct Handle {
     HANDLE value{INVALID_HANDLE_VALUE};
     ~Handle() { if (value != INVALID_HANDLE_VALUE) CloseHandle(value); }
