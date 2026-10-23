@@ -80,8 +80,8 @@ try {
     [Environment]::SetEnvironmentVariable('LMTI_WEB_TEST_QT_PROBE',(Join-Path $taskRuntime 'bin/lmti-qt-web-probe.exe'))
     [Environment]::SetEnvironmentVariable('LMTI_WEB_TEST_BINDING_PRODUCER',(Join-Path $taskRuntime 'bin/lmti-mcp-binding-identity-tests.exe'))
     [Environment]::SetEnvironmentVariable('LMTI_WEB_TEST_UPGRADE_WRITE_ADMIN',(Join-Path $taskRuntime 'bin/lmti-project-operation-write-test-admin.exe'))
-    Invoke-VerificationNode -Name 'ui' -Arguments @('--test','--test-concurrency=1','apps/web-ui/test/*.test.mjs')
-    Invoke-VerificationNode -Name 'api' -Arguments @('--test','--test-concurrency=1','apps/web-api/test/*.test.mjs')
+    Invoke-VerificationNode -Name 'ui' -Arguments @('--test','--test-reporter=tap','--test-concurrency=1','apps/web-ui/test/*.test.mjs')
+    Invoke-VerificationNode -Name 'api' -Arguments @('--test','--test-reporter=tap','--test-concurrency=1','apps/web-api/test/*.test.mjs')
     Invoke-VerificationNode -Name 'qt-api' -Arguments @('scripts/web-qt-interop-smoke.mjs')
     Invoke-VerificationNode -Name 'qt-ipc-fault' -Arguments @('scripts/web-qt-interop-smoke.mjs','--ipc-lock')
     $taskReport.allSelectedChecksPassed=$true
