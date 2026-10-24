@@ -12,7 +12,7 @@ passing fixture does not prove live client/provider acceptance.
 | Logical/physical hierarchy | Implemented with explicit grants | Native typed review/commit; original binding/revision checks |
 | Inventory, Knowledge, desired settings | Implemented per source grants | Scoped SDK, evidence/freshness; no device commands |
 | Project copy/library upgrade/activation/recovery | Implemented with explicit maintenance grants | Native receipts and writer recovery |
-| Project content/work/software editing | Implemented: 13 categories, review/confirm/readback | Typed native owner, explicit project edit grant; do not infer from model alone |
+| Project content/work/software editing | Implemented: 13 categories, review/confirm/readback | Typed native owner; explicit content grant gates editor reads and writes; ID selection alone does not grant this capability |
 | Library creation/registration/linking/pins/remove reference | Implemented with independent reviewed launcher file | Approved parent/folder/candidate keys; preview/CAS/exclusive lease/original-target recovery; no session scope expansion |
 | Google Drive panel/live OAuth | Experimental owner; former Qt panel removed | Publisher/live acceptance and browser flow separate; no credentials in metadata |
 | Advanced Impact panel | CLI/SDK owner available; former Qt panel removed | Scoped reviewed sources and reports; no universal browser parity claim |

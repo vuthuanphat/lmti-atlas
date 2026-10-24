@@ -2,9 +2,11 @@
 
 ## Ưu tiên hiện hành — 24/10/2026
 
-Chủ sản phẩm yêu cầu hoàn thiện khởi động/phục hồi, cài đặt dễ dùng và đồng bộ
-tài liệu, kiểm thử lại đầy đủ; **chưa merge main, tạo tag hay publish**. Thực hiện
-theo [kế hoạch startup readiness](plans/2026-10-24-startup-readiness.md).
+Sau khi hoàn thiện khởi động/phục hồi và kiểm thử, chủ sản phẩm đã cho phép cập
+nhật mã nguồn mới lên `main` và viết lại README trong ngày 24/10. Chỉ đạo này
+thay điều kiện chưa merge trước đó **cho tích hợp source**; vẫn chưa tạo tag hoặc
+publish runtime release. Việc được phép không có nghĩa push/merge/CI đã hoàn tất.
+Xem [kế hoạch startup readiness](plans/2026-10-24-startup-readiness.md).
 
 1. Một lối thiết lập workspace local mới bằng demo hoặc dự án trống, có xem và
    duyệt quyền; mở lại bằng launcher đã lưu cấu hình nonsecret.
@@ -16,8 +18,11 @@ theo [kế hoạch startup readiness](plans/2026-10-24-startup-readiness.md).
 
 [Remediation 23/10](plans/2026-10-23-audit-remediation.md) đã có library management
 và 13 nhóm nội dung web. Baseline `771fc40` có bốn job CI thành công; xem
-[QA theo commit](releases/v0.2.0-alpha.1-qa.md). Kết quả đó không nghiệm thu source
-đang đổi, Windows sạch hay người vận hành độc lập. Drive/Impact nâng cao vẫn
+[QA theo commit](releases/v0.2.0-alpha.1-qa.md). Bản runtime local cuối `85eda3c`
+đạt UI 139 và API 458 (một skip), cùng regression native/TS/Python/Go và browser
+thật qua launcher đã lưu; hồ sơ ghi riêng năm nhánh native và sáu ca TS skip.
+Kết quả đó không thay CI của commit tích hợp mới, Windows sạch hoặc người vận
+hành độc lập. Drive/Impact nâng cao vẫn
 [để sau](plans/2026-10-23-optional-integrations.md); nguồn live/client/provider
 giữ các gate riêng. React + Vite tiếp tục là giao diện duy nhất.
 

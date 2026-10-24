@@ -62,24 +62,27 @@ separate reviewed advanced grant instead of editing the saved profile to widen i
 After the native owner confirms registration, open a new session with an
 explicit catalog selection. First use Q in the older workspace console and wait
 for drain; a second broker must not bypass its writer admission. From the trusted
-package directory:
+package directory, with the profile previously created under existing local
+parent `C:\work`:
 
 ```powershell
-& .\scripts\open-local-workspace.ps1 -WorkspaceFile 'C:\LMTI-demo\lmti-workspace.json' -ProjectId new-project
+& .\scripts\open-local-workspace.ps1 -WorkspaceFile 'C:\work\LMTI-demo\lmti-workspace.json' -ProjectId new-project
 ```
 
-The new project's content is read-only. Saved library-management/maintenance
-grants remain active, so the whole session is not read-only. To explicitly grant
-content editing to every selected ID, use the `-GrantProjectContent` **switch**:
+Selection enables other selected-project views; it does **not** grant the typed
+content editor, including its reads. Saved library-management/maintenance grants
+remain active. To grant the typed content editor's reads and writes for every
+selected ID, use the `-GrantProjectContent` **switch**:
 
 ```powershell
-& .\scripts\open-local-workspace.ps1 -WorkspaceFile 'C:\LMTI-demo\lmti-workspace.json' -ProjectId new-project -GrantProjectContent
+& .\scripts\open-local-workspace.ps1 -WorkspaceFile 'C:\work\LMTI-demo\lmti-workspace.json' -ProjectId new-project -GrantProjectContent
 ```
 
 The native catalog validates each selected ID; the profile is not rewritten.
 With a selection containing the initial and new project but no switch, only
 the original content grant is retained. `-GrantProjectContent` requires explicit
-IDs and grants all selected IDs, so select only projects you intend to edit.
+IDs and grants editor reads/writes for all selected IDs, so select only projects
+you intend to grant that capability.
 Add `-ValidateOnly` to inspect `selectedProjectIds` and `contentProjectIds`
 without starting a service. This grants neither Agent nor hierarchy/copy/activation
 access. A normal double-click still uses the original saved scope. Retain that

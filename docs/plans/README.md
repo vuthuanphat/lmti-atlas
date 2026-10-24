@@ -11,23 +11,25 @@ product-priority and milestone authority. Earlier stage IDs are historical;
 unfinished gates below become work only through the master backlog. No report
 or old plan independently authorizes another implementation branch.
 
-The owner requested implementation and full retesting, with **no merge to main
-or publication**. Clean Windows and independent operator acceptance remain open.
+After implementation and retesting, the owner authorized source integration into
+`main` and README refresh on 2026-10-24. The earlier no-main hold is historical;
+runtime release/tag publication remains held. Clean Windows and independent
+operator acceptance remain open. Authorization does not claim a completed merge.
 Live clients/providers/IoT retain their separate acceptance gates; controlled
 replay is not live acceptance. Drive/OAuth and advanced Impact browser work are
 [deferred](2026-10-23-optional-integrations.md).
 
 ## Current planning annex
 
-The [current QA record](../releases/v0.2.0-alpha.1-qa.md) identifies the
-2026-10-23 baseline `771fc40`, including successful hosted CI. Later source edits
-require their own local/hosted verification; final merged/tag provenance is a
-future gate. Old test counts and claims that hosted CI had not yet run apply
+The [current QA record](../releases/v0.2.0-alpha.1-qa.md) identifies the final
+local readiness runtime `85eda3c` and keeps baseline `771fc40` hosted CI separate.
+Later source edits require their own verification; final merged/tag provenance
+is a future gate. Old test counts and claims that hosted CI had not yet run apply
 only to the dated records below.
 
 | File | Role |
 | --- | --- |
-| [Startup readiness](2026-10-24-startup-readiness.md) | Current setup, reopen, session/recovery UX and documentation work; no merge/publish |
+| [Startup readiness](2026-10-24-startup-readiness.md) | Verified local setup/recovery work; source integration authorized, runtime publication held |
 | [Audit remediation](2026-10-23-audit-remediation.md) | Implemented library/content scope and baseline checks |
 | [Local operator guide](../local-web.md) | Current package setup, launch grants, session lifetime and recovery steps |
 | [MVP build r6](2026-10-14-mvp-build-r6.md) | Dated build-first instruction and opt-in Agent reference projection |

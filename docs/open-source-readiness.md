@@ -1,10 +1,11 @@
 # Open-source readiness — v0.2.0-alpha.1
 
 Canonical repository: `https://github.com/vuthuanphat/lmti-atlas`.
-Status: unpublished release candidate. The owner's 2026-10-24 instruction is to
-finish startup, recovery, installation and documentation and retest, **without
-merging main or publishing**. Earlier launch authorization does not override this
-hold. Source PR preparation does not imply runtime release acceptance.
+Status: unpublished release candidate. After the startup/readiness work, the
+owner authorized integrating the latest source into `main` and refreshing the
+README on 2026-10-24. This supersedes the earlier no-main hold for source
+integration only. **Public runtime release and tag publication remain held.**
+Authorization is not evidence that a push, CI run or merge has completed.
 
 ## Prepared scope
 
@@ -36,7 +37,16 @@ validate later startup/readiness edits or a future merge/tag. The
 [QA record](releases/v0.2.0-alpha.1-qa.md) separates that baseline from current
 verification and open external acceptance.
 
-## Remaining gates before publication
+The latest verified local runtime is commit
+`85eda3c2b63a4131508078908105b012c76a6a01`: UI 139 and API 458 pass with one API
+skip, plus fresh native/TS/Python/Go/broker/client regressions and actual saved
+launcher browser journeys. Its 405-file extracted package passed doctor and
+archive checks. See [exact validation and provenance](releases/v0.2.0-alpha.1-qa.md#latest-verified-local-runtime--85eda3c).
+The checks include five native internal capability skips and six TS skips; they
+are not independent operator or clean-Windows acceptance. Documentation changes
+and eventual merged/tag artifacts must retain their own commit/hash provenance.
+
+## Remaining gates before runtime release publication
 
 - Verify the final candidate's checksums, third-party source/license materials
   and exact release notes. Confirm `.gitignore` and tracked files exclude local
@@ -49,8 +59,9 @@ verification and open external acceptance.
   merged/tag SHA and the exact extracted distribution after any authorized merge.
 - Run `lmti publish preflight` before public pushes, PRs, remote changes or release.
   ERROR/BLOCKED stops publication; the gate must not be weakened to force a pass.
-- Keep the release and PR in draft. Clean Windows and independent operator
-  acceptance remain open, and the current owner instruction forbids merge and
-  publication. Do not create a public tag or move historical tags.
+- Keep the runtime prerelease in draft. Source integration into `main` is now
+  authorized separately; clean Windows and independent operator acceptance remain
+  open for the runtime release. Do not create a public tag or publish the release
+  under that source-only authorization, and do not move historical tags.
 
 See [release notes](releases/v0.2.0-alpha.1.md) and [build instructions](release-build.md).

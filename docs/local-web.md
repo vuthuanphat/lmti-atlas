@@ -57,7 +57,9 @@ Hoặc từ thư mục đã giải nén, chạy một lệnh:
 ```
 
 1. Chọn đường dẫn tuyệt đối cho một **thư mục workspace mới**, ngoài package và
-   `.lmti/`. Không dùng thư mục đã tồn tại, thư mục mạng hoặc symlink/junction.
+   `.lmti/`, dưới một **thư mục cha local đã tồn tại**. Không đặt workspace trực
+   tiếp dưới gốc ổ đĩa. Không dùng thư mục workspace đã tồn
+   tại, thư mục mạng hoặc symlink/junction.
 2. Chọn `demo` để có **Factory Monitor** (`factory-monitor`), hoặc `empty` và
    nhập ID/tên dự án. Demo chỉ chứa dữ liệu giả; không kết nối thiết bị/client.
 3. Xem quyền được cấp: sửa nội dung của đúng dự án ban đầu, metadata thư viện
@@ -77,11 +79,12 @@ Kết quả gồm `data/`, `projects/`, các thư mục `source/`/`source-N/` đ
 quyền đã duyệt và pin tính toàn vẹn package, không lưu session token hay mật khẩu.
 Các thư mục mới chưa chứa repository thật. Không đưa secret vào project metadata.
 
-Ví dụ có tham số tường minh, vẫn xem và xác nhận quyền trước khi tạo:
+Ví dụ dưới đây giả sử `C:\work` đã tồn tại và là thư mục local bình thường;
+hai thư mục workspace con phải chưa tồn tại. Vẫn xem và xác nhận quyền trước khi tạo:
 
 ```powershell
-& .\scripts\setup-local-web.ps1 -WorkspaceDirectory 'C:\LMTI-demo' -Mode demo
-& .\scripts\setup-local-web.ps1 -WorkspaceDirectory 'C:\LMTI-empty' -Mode empty -ProjectId my-project -ProjectName 'My project' -NoLaunch
+& .\scripts\setup-local-web.ps1 -WorkspaceDirectory 'C:\work\LMTI-demo' -Mode demo
+& .\scripts\setup-local-web.ps1 -WorkspaceDirectory 'C:\work\LMTI-empty' -Mode empty -ProjectId my-project -ProjectName 'My project' -NoLaunch
 ```
 
 `-EnableMaintenance` là lựa chọn bảo trì ở bước 4. `-NoLaunch` chỉ tạo workspace;
@@ -101,7 +104,7 @@ cao với JSON folder-grant đã review riêng nếu cần mở rộng.
 Mở **`Open-LMTI.cmd` bên trong workspace**. Có thể mở từ PowerShell:
 
 ```powershell
-& .\scripts\open-local-workspace.ps1 -WorkspaceFile 'C:\LMTI-demo\lmti-workspace.json'
+& .\scripts\open-local-workspace.ps1 -WorkspaceFile 'C:\work\LMTI-demo\lmti-workspace.json'
 ```
 
 Opener kiểm tra profile, package/pin, grant và runtime trước khi mở dữ liệu.
@@ -111,25 +114,27 @@ một thay đổi cấu hình có chủ đích. Giữ gói gốc cho workspace �
 
 Mặc định `Open-LMTI.cmd` và lệnh không có override giữ đúng dự án ban đầu cùng
 quyền sửa đã duyệt. Nhấn **O**, đóng/mở lại console hoặc đăng ký dự án trong thư
-viện **không tự thêm ID vào quyền phiên**. Để đọc một dự án vừa đăng ký, chỉ định
+viện **không tự thêm ID vào quyền phiên**. Để chọn một dự án vừa đăng ký, chỉ định
 ID qua opener; native owner kiểm tra mọi ID đã có trong thư viện. Đóng console
 workspace cũ bằng Q và đợi drain trước khi mở lựa chọn mới để tránh writer cạnh tranh:
 
 ```powershell
-& .\scripts\open-local-workspace.ps1 -WorkspaceFile 'C:\LMTI-demo\lmti-workspace.json' -ProjectId new-project
+& .\scripts\open-local-workspace.ps1 -WorkspaceFile 'C:\work\LMTI-demo\lmti-workspace.json' -ProjectId new-project
 ```
 
-Nội dung của dự án mới này chỉ được đọc; các quyền metadata thư viện/bảo trì đã
-duyệt vẫn giữ nguyên, nên toàn phiên không phải chế độ chỉ đọc. Để cấp sửa nội
-dung có chủ đích cho các ID vừa chọn:
+Lựa chọn này mở các view khác theo scope dự án được chọn, **chưa cấp typed content
+editor**, kể cả thao tác đọc nội dung qua editor đó. Các quyền metadata thư viện/
+bảo trì đã duyệt vẫn giữ nguyên. Để cấp cả đọc và sửa trong typed content editor
+có chủ đích cho các ID vừa chọn:
 
 ```powershell
-& .\scripts\open-local-workspace.ps1 -WorkspaceFile 'C:\LMTI-demo\lmti-workspace.json' -ProjectId new-project -GrantProjectContent
+& .\scripts\open-local-workspace.ps1 -WorkspaceFile 'C:\work\LMTI-demo\lmti-workspace.json' -ProjectId new-project -GrantProjectContent
 ```
 
-`-GrantProjectContent` là **switch**, yêu cầu `-ProjectId` tường minh và cấp sửa
-cho **tất cả ID được chọn**. Nếu chọn `factory-monitor,new-project` mà không có
-switch, chỉ dự án ban đầu giữ quyền sửa, dự án mới chỉ đọc. Các lựa chọn này chỉ
+`-GrantProjectContent` là **switch**, yêu cầu `-ProjectId` tường minh và cấp typed
+content editor (đọc và sửa) cho **tất cả ID được chọn**. Nếu chọn
+`factory-monitor,new-project` mà không có switch, chỉ dự án ban đầu giữ quyền
+content editor đã duyệt; dự án mới chưa có quyền editor đó. Các lựa chọn này chỉ
 áp dụng cho lần mở đó, không sửa profile hay launcher đã lưu và không cấp Agent,
 hierarchy, copy hoặc activation. Thêm `-ValidateOnly` để xem
 `selectedProjectIds`/`contentProjectIds` trước khi mở. Với recovery đang chặn,
@@ -212,7 +217,7 @@ thư mục nguồn và ứng viên dự án cụ thể. **Work → Project libra
 nguồn. Trình duyệt chỉ chọn key, không gửi đường dẫn. Xem [thiết lập thư viện](library-management.md).
 Dự án mới/liên kết mới cần lựa chọn ID tường minh khi mở một phiên mới qua
 `open-local-workspace.ps1 -ProjectId`; bật `-GrantProjectContent` riêng nếu cần
-sửa. Chỉ nhấn O hoặc chạy lại launcher mặc định vẫn giữ các ID cũ.
+đọc/sửa qua typed content editor. Chỉ nhấn O hoặc chạy lại launcher mặc định vẫn giữ các ID cũ.
 Xem [mở lại và chọn phạm vi](#mở-lại-và-đóng-đúng-cách).
 
 Để tạo project thứ hai trong workspace setup mặc định: cấp bảo trì thư viện lúc

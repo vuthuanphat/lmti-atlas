@@ -1,9 +1,13 @@
 # Startup, setup and recovery readiness
 
 Date: 2026-10-24. Baseline: `771fc40f439ec1fe49a1fa1bca3183e58ccbae28`.
-The owner authorized implementation and full regression checks, with **no merge
-to main, public tag or release publication**. Human and clean-Windows acceptance
-remain separate from maintainer and CI checks.
+The initial instruction authorized implementation and full regression checks,
+with no merge to main or publication. After the readiness work, the owner
+authorized the latest source integration into `main` and README refresh on
+2026-10-24. That replaces the earlier main hold for source only; **runtime
+release and public tag publication remain held**. Authorization is not a record
+of a completed push, merge or CI run. Human and clean-Windows acceptance remain
+separate from maintainer and CI checks.
 
 ## Intended outcome
 
@@ -26,7 +30,8 @@ write authority.
 
 - React + Vite remains the only UI. Native C++/Qt Core/Sql retains SQLite authority.
 - Initial setup operates exclusively on a new workspace. Existing data is never
-  reinitialized because an owner is unavailable. No schema upgrade is implicit.
+  reinitialized because an owner is unavailable. Its ordinary local parent must
+  already exist and cannot be a volume root. No schema upgrade is implicit.
 - Setup reviews `ProjectFolderCount` (1–8, default 4) and creates only derived
   local source folders: `source/` for the initial project plus `source-2/` onward.
   A subsequent project needs a reviewed library upgrade and an unused approved
@@ -36,9 +41,11 @@ write authority.
   credentials, browser session tokens or one-use bootstrap fragments.
 - O and the default saved launcher retain the initial project IDs. A separate
   opener selection uses explicit registered `-ProjectId` IDs checked by the
-  native catalog; `-GrantProjectContent` is a switch granting edits to all selected
+  native catalog; `-GrantProjectContent` is a switch granting typed content editor
+  reads and writes to all selected
   IDs and requires that explicit selection. Without it, only the original
-  already-approved content scope is retained. These are session-only overrides;
+  already-approved content scope is retained; newly selected IDs do not gain that
+  editor's read access implicitly. These are session-only overrides;
   the saved profile and Agent/hierarchy/copy/activation grants do not change.
 - The operator console uses its inherited local stdin only. Session TTL and
   authentication remain unchanged. Reopening creates a new scoped session and
@@ -60,8 +67,10 @@ service and a confirmed write outcome. Same-user filesystem races, forcibly
 closing a console and machine power loss retain the existing recovery limits.
 Routine checks must not leak locators, stderr, token-bearing URLs or personal data.
 
-Implementation and final verification results will be recorded after the actual
-checks complete; this plan alone does not close any acceptance gate.
+Final local verification identifies source `85eda3c2b63a4131508078908105b012c76a6a01`;
+the [QA record](../releases/v0.2.0-alpha.1-qa.md#latest-verified-local-runtime--85eda3c)
+reports actual counts and exact-package provenance. This plan alone does not
+close any external acceptance gate.
 
 The [operator acceptance guide](../operator-acceptance.md) records step-by-step
 human outcomes separately from maintainer-controlled automated/browser checks.
@@ -75,12 +84,13 @@ The source now provides reviewed fresh setup, package-root `LMTI.cmd`, a saved
 distinct EN/VI service/session/owner/writer guidance and a read-only service
 check. Optional maintenance stays separate. The [QA record](../releases/v0.2.0-alpha.1-qa.md)
 separates preliminary working-tree regressions from baseline CI and final-package
-verification. Delivery records identify the eventual committed package and hashes.
+verification. Delivery records identify the verified `85eda3c` package and hashes.
 
 A real-browser race exposed failed lazy Work-panel loading during shutdown.
 Core panels were moved to the initial bundle and initial HTML gained bilingual
-fallback guidance; the known Vite chunk-size warning is retained. Fresh-package
-browser evidence is required after this fix. Setup also gained reviewed bounded
+fallback guidance; the known Vite chunk-size warning is retained. Ten synthetic
+real-browser journeys passed on the exact final package after the fix; this is
+maintainer automation, not independent acceptance. Setup also gained reviewed bounded
 spare folders because the initial folder is already uniquely bound; no native
 uniqueness or authorization rule was relaxed. Do not erase those failures from
 the verification history or infer independent acceptance from repaired tests.

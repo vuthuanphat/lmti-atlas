@@ -8,7 +8,7 @@ leak private project knowledge into a prompt, log, package, or public repo.
 
 | Version | Support Status |
 |---|---|
-| `0.2.0-alpha.1` | Local candidate; security fixes in the prepared release branch. |
+| `0.2.0-alpha.1` | Development candidate; security fixes tracked in this repository, runtime release pending. |
 | `0.1.0-alpha.1` | Historical public alpha; upgrade guidance accompanies the next release. |
 | Earlier versions | Not supported. |
 

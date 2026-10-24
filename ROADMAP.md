@@ -14,7 +14,8 @@ general monitoring platform. See the [capability matrix](docs/web-capabilities.m
 | 1 | Easier first setup and reliable reopen | Fresh demo/empty workspace, reviewed scope, reusable local opener and actionable prerequisite errors |
 | 2 | Startup/session and recovery guidance | One-use authentication, distinct connection/owner/session errors, graceful drain and original-target recovery; no automatic repeat of unknown writes |
 | 3 | Candidate documentation and verification | Source/package runbooks match; record checks for changed source separately from the 771fc40 baseline |
-| Later acceptance | Clean Windows, independent operator and release provenance | These gates remain open; the current instruction forbids merging main or publishing |
+| Source integration | Integrate reviewed source and refresh README | Authorized on 2026-10-24; record actual preflight/CI/merged-SHA results separately |
+| Later runtime acceptance | Clean Windows, independent operator and release provenance | These gates remain open; public runtime release/tag publication remains held |
 | Separate pilot | Actual clients/providers and live read-only observation | Record permission, environment, source and outcome; replay is not live evidence |
 
 Current implementation includes the React workspace, local authenticated Node

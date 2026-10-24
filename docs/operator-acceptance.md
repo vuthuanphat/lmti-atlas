@@ -4,7 +4,8 @@ This is a test procedure, not a passed acceptance report. Use a fresh disposable
 workspace and synthetic nonsecret data. Independent operator and clean-Windows
 acceptance remain pending until a tester records the results below for the exact
 candidate. Maintainer browser checks and CI do not replace either gate. The
-current owner instruction forbids merging main, tagging or publication.
+owner has separately authorized source integration into main; runtime tag and
+release publication remain held. This procedure does not certify a source merge.
 
 Follow the [local setup guide](local-web.md) from the trusted extracted package.
 Do not use a live repository, existing Studio data or an operational `.lmti/`
@@ -32,7 +33,9 @@ bootstrap fragment. Record each result as Pass, Fail or Not run with a reason.
 
 1. **Verify and cancel setup.** Double-click package-root `LMTI.cmd` or run
    `scripts/setup-local-web.ps1`, choose a new
-   workspace path and demo mode. Inspect the displayed grants, then cancel
+   workspace path under an existing ordinary local parent (for example
+   `C:\work\LMTI-demo` under existing `C:\work`) and demo mode. A workspace
+   directly under a volume root is refused. Inspect the displayed grants, then cancel
    instead of typing `CREATE`. Confirm that no workspace was created. Record
    prerequisite or policy failures as failures to start, without bypassing them.
 2. **Create a demo.** Run setup again and confirm `CREATE`. Verify Factory Monitor,
@@ -68,9 +71,10 @@ bootstrap fragment. Record each result as Pass, Fail or Not run with a reason.
    A new O tab or default saved opener must retain the original IDs.
    Use Q to drain the older console before starting a different selected session.
    Use `open-local-workspace.ps1 -WorkspaceFile <profile> -ProjectId <registered-id>`
-   for read-only project content; saved library-management/maintenance grants
-   remain active. Add the `-GrantProjectContent` switch only after
-   reviewing that edit grant for all selected IDs. Check `-ValidateOnly` returns
+   for other selected-project views; the typed content editor, including reads,
+   must remain ungranted for the new ID. Saved library-management/maintenance
+   grants remain active. Add the `-GrantProjectContent` switch only after
+   reviewing the editor read/write grant for all selected IDs. Check `-ValidateOnly` returns
    the intended selected/content IDs.
    Never edit the saved JSON to widen rights. If a library upgrade is needed,
    it requires the separately granted maintenance scope and reviewed preview.
@@ -112,4 +116,4 @@ Record failures with the visible message, step, expected/actual result and a
 sanitized screenshot. Stop dependent writes after an unknown outcome. A second
 person must review unresolved failures and any Not run release-critical step.
 Record clean-Windows results separately if this run used an existing development
-machine. Completing this form does not authorize merge or publication.
+machine. Completing this form does not itself authorize a tag or runtime release.

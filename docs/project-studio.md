@@ -11,8 +11,9 @@ Use the [fresh-workspace setup](local-web.md#thiết-lập-workspace-mới), or 
 [advanced operator commands](local-web.md#khởi-tạo-dự-án-không-cần-desktop) for
 existing data. A browser refresh, O or restart of the saved default opener keeps
 the original IDs. Select newly registered IDs explicitly through the
-[local opener](library-management.md#open-a-newly-registered-project); content
-editing requires its separate grant. Existing libraries are preserved; schema
+[local opener](library-management.md#open-a-newly-registered-project); the typed
+content editor, including its reads and writes, requires its separate grant.
+Existing libraries are preserved; schema
 upgrades require the separate reviewed maintenance workflow.
 
 The empty-library screen explains setup in English and Vietnamese. A failed
