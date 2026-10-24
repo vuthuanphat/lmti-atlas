@@ -6,6 +6,8 @@
     "types": ["node"]
   },
   "references": [
+    { "path": "../drive" },
+    { "path": "../impact" },
     { "path": "../types" },
     { "path": "../compiler" },
     { "path": "../frameworks" },

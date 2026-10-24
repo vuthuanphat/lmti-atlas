@@ -1,0 +1,62 @@
+.physical-hierarchy-panel { min-width:0; overflow-wrap:anywhere; }
+.physical-hierarchy-panel>header,.physical-hierarchy-actions,.physical-hierarchy-explorer-header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.physical-hierarchy-panel h2,.physical-hierarchy-panel h3 { margin-top:0; }
+.physical-hierarchy-panel>p { color:var(--muted); max-width:85ch; }
+.physical-hierarchy-workbench { display:grid; grid-template-columns:minmax(0,1fr) minmax(280px,340px); gap:16px; align-items:start; margin-block:24px; }
+.physical-hierarchy-workbench:has(>.physical-hierarchy-draft-column:only-child) { grid-template-columns:minmax(0,1fr); }
+.physical-hierarchy-draft-column:empty,.physical-hierarchy-workbench:has(>.physical-hierarchy-draft-column:only-child:empty) { display:none; }
+.physical-hierarchy-workbench:has(>.physical-hierarchy-draft-column:empty) { grid-template-columns:minmax(0,1fr); }
+.physical-hierarchy-explorer,.physical-hierarchy-draft-column,.physical-hierarchy-review,.physical-hierarchy-submission { min-width:0; border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:20px; }
+.physical-hierarchy-explorer-header { font-weight:600; }
+.physical-hierarchy-boundary { color:var(--muted); font-size:12px; line-height:1.6; }
+.physical-hierarchy-explorer-grid { display:grid; grid-template-columns:minmax(160px,.8fr) minmax(0,1fr); gap:16px; margin-top:20px; }
+.physical-hierarchy-browser { min-width:0; border-right:1px solid var(--line); padding-right:16px; max-height:640px; overflow:auto; }
+.physical-hierarchy-browser label { font-size:12px; color:var(--muted); display:block; margin-bottom:8px; }
+.physical-hierarchy-browser input { width:100%; }
+.physical-hierarchy-browser details { margin-top:16px; }
+.physical-hierarchy-browser summary { color:var(--muted); padding-block:8px; }
+.physical-hierarchy-browser summary span { float:right; }
+.physical-hierarchy-browser ul { padding:0; margin:4px 0; list-style:none; }
+.physical-hierarchy-browser li { margin:4px 0; }
+.physical-hierarchy-browser button { width:100%; min-height:48px; display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:12px; text-align:left; border:1px solid transparent; background:transparent; overflow-wrap:anywhere; }
+.physical-hierarchy-browser button[aria-pressed=true] { background:var(--elevated); border-color:var(--accent); box-shadow:inset 3px 0 var(--accent); }
+.physical-hierarchy-browser code { font-size:12px; color:var(--muted); }
+.physical-hierarchy-inspector { min-width:0; }
+.physical-hierarchy-inspector>code { display:block; font-size:12px; color:var(--muted); }
+.physical-hierarchy-inspector>.physical-hierarchy-boundary { border-top:1px solid var(--line); padding-top:16px; margin-top:20px; }
+.physical-hierarchy-complete { border-top:1px solid var(--line); margin-top:20px; padding-top:16px; }
+.physical-hierarchy-state summary { cursor:pointer; font-size:13px; font-weight:600; }
+.physical-hierarchy-complete .physical-hierarchy-state details { padding:12px; border:1px solid var(--line); border-radius:6px; margin-block:12px; background:var(--bg); }
+.physical-hierarchy-complete li,.physical-hierarchy-diff li { margin-block:12px; padding-block:8px; }
+.physical-hierarchy-complete p,.physical-hierarchy-diff p { margin-block:8px; }
+.physical-hierarchy-editor { margin:0 0 24px; }
+.physical-hierarchy-editor fieldset { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; min-width:0; border:0; margin:0; padding:0; }
+.physical-hierarchy-editor legend { font-weight:600; font-size:16px; margin-bottom:16px; }
+.physical-hierarchy-editor label { color:var(--muted); font-size:12px; margin-top:8px; }
+.physical-hierarchy-editor input,.physical-hierarchy-editor select { width:100%; box-sizing:border-box; }
+.physical-hierarchy-editor button { justify-self:start; margin-top:8px; }
+.physical-hierarchy-editor .physical-hierarchy-placement { border-top:1px solid var(--line); margin-top:16px; padding-top:16px; }
+.physical-hierarchy-draft { border-top:1px solid var(--line); padding-top:20px; }
+.physical-hierarchy-draft h3 { font-size:16px; }
+.physical-hierarchy-draft ol { padding-left:24px; }
+.physical-hierarchy-draft li { margin:12px 0; }
+.physical-hierarchy-draft li button { margin:8px 0 0 8px; }
+.physical-hierarchy-review,.physical-hierarchy-submission { margin-top:20px; }
+.physical-hierarchy-review>h3 { color:var(--accent); }
+.physical-hierarchy-diff ul { padding-left:20px; }
+.physical-hierarchy-diff h4 { margin-block:24px 12px; }
+.physical-hierarchy-diff h5 { font-size:14px; margin:8px 0; }
+.physical-hierarchy-before-after { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.physical-hierarchy-before-after>section { background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:16px; min-width:0; }
+.physical-hierarchy-before-after>section:last-child { border-top:2px solid var(--accent); }
+.physical-hierarchy-before-after h6 { font-size:12px; color:var(--muted); margin:0 0 12px; text-transform:uppercase; }
+.physical-hierarchy-values { display:grid; grid-template-columns:minmax(0,.85fr) minmax(0,1.2fr); gap:12px; font-size:13px; }
+.physical-hierarchy-values dd { margin:0; overflow-wrap:anywhere; }
+.physical-hierarchy-values dt { font-weight:400; color:var(--muted); }
+.physical-hierarchy-error { border-left:3px solid var(--bad); border-radius:6px; background:var(--panel); padding:16px; margin-block:16px; color:var(--bad); }
+.physical-hierarchy-status:not(:empty) { padding:12px 16px; border-left:3px solid var(--accent); background:var(--panel); margin:16px 0; }
+.physical-hierarchy-status:empty { display:none; }
+.physical-hierarchy-panel :focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+@media(max-width:1399px) { .physical-hierarchy-workbench { grid-template-columns:minmax(0,1fr); } .physical-hierarchy-draft-column { display:grid; grid-template-columns:1fr 1fr; gap:24px; } .physical-hierarchy-editor { margin:0; } .physical-hierarchy-draft { border-top:0; border-left:1px solid var(--line); padding:0 0 0 24px; } }
+@media(max-width:1399px) { .physical-hierarchy-draft-column:not(:has(>.physical-hierarchy-draft)) { grid-template-columns:minmax(0,1fr); } .physical-hierarchy-draft-column>p { grid-column:1/-1; } .physical-hierarchy-draft-column:empty { display:none; } }
+@media(max-width:767px) { .physical-hierarchy-explorer,.physical-hierarchy-draft-column,.physical-hierarchy-review,.physical-hierarchy-submission { padding:16px; } .physical-hierarchy-explorer-grid,.physical-hierarchy-draft-column,.physical-hierarchy-before-after { grid-template-columns:minmax(0,1fr); } .physical-hierarchy-browser { border-right:0; border-bottom:1px solid var(--line); padding:0 0 16px; max-height:320px; } .physical-hierarchy-draft { border-left:0; border-top:1px solid var(--line); padding:20px 0 0; } .physical-hierarchy-actions { align-items:stretch; } .physical-hierarchy-actions button { flex:1 1 180px; } }

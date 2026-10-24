@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { AMF_VERSION, createEmptyAmf, type AmfDocument } from "@atlas/types";
+import { checkedCanonicalPath, writeCanonicalFile } from "./storage-boundary.js";
 
 export const LMTI_DIR = ".lmti";
 export const LEGACY_ATLAS_SOURCE = "atlas";
@@ -318,10 +319,10 @@ export async function migrateAtlasToLmti(cwd = process.cwd(), options: Migration
     if (selected) {
       selectedLegacyAmf = selected.entry.path;
       selectedProjectName = selected.document.project.name;
-      await fs.writeFile(paths.amfPath, JSON.stringify(selected.document, null, 2), "utf8");
+      await writeCanonicalFile(root, paths.amfPath, JSON.stringify(selected.document, null, 2), true);
       changes.push(`Copied legacy project mind from ${selected.entry.path} to .lmti/project.amf.json.`);
     } else {
-      await fs.writeFile(paths.amfPath, JSON.stringify(createPlaceholderAmf(root), null, 2), "utf8");
+      await writeCanonicalFile(root, paths.amfPath, JSON.stringify(createPlaceholderAmf(root), null, 2), true);
       warnings.push("No readable legacy AMF document was found; created an uncompiled .lmti/project.amf.json placeholder.");
       changes.push("Created .lmti/project.amf.json placeholder.");
     }
@@ -383,7 +384,7 @@ export async function doctorLmti(cwd = process.cwd(), options: DoctorOptions = {
 
       if (!scan.canonical.projectAmfExists && !scan.hasLegacy) {
         const paths = canonicalStoragePaths(root);
-        await fs.writeFile(paths.amfPath, JSON.stringify(createPlaceholderAmf(root), null, 2), "utf8");
+        await writeCanonicalFile(root, paths.amfPath, JSON.stringify(createPlaceholderAmf(root), null, 2), true);
         changes.push("Created .lmti/project.amf.json placeholder.");
       }
 
@@ -487,20 +488,21 @@ export async function normalizeLmtiConfig(
   const root = path.resolve(cwd);
   const paths = canonicalStoragePaths(root);
   const warnings: string[] = [];
-  await fs.mkdir(paths.atlasDir, { recursive: true });
+  await checkedCanonicalPath(root, paths.atlasDir, "directory");
+  const configPath = await checkedCanonicalPath(root, paths.configPath, "file");
 
   let existingText = "";
   let existing: JsonRecord = {};
-  try {
-    existingText = await fs.readFile(paths.configPath, "utf8");
-    const parsed = JSON.parse(existingText) as unknown;
-    if (isRecord(parsed)) {
-      existing = parsed;
-    } else {
-      warnings.push(".lmti/config.json did not contain a JSON object and was normalized.");
-    }
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+  if (configPath.exists) {
+    await configPath.recheck();
+    existingText = await fs.readFile(configPath.filename, "utf8");
+    await configPath.recheck();
+    try {
+      const parsed = JSON.parse(existingText) as unknown;
+      if (isRecord(parsed)) existing = parsed;
+      else warnings.push(".lmti/config.json did not contain a JSON object and was normalized.");
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
       warnings.push(".lmti/config.json could not be parsed and was normalized.");
     }
   }
@@ -529,7 +531,8 @@ export async function normalizeLmtiConfig(
 
   const nextText = `${JSON.stringify(next, null, 2)}\n`;
   if (existingText !== nextText) {
-    await fs.writeFile(paths.configPath, nextText, "utf8");
+    await configPath.recheck();
+    await writeCanonicalFile(root, paths.configPath, nextText, !configPath.exists);
     return { changed: true, warnings };
   }
   return { changed: false, warnings };
@@ -713,7 +716,7 @@ async function writeMigrationReport(
   }
 ): Promise<string> {
   const paths = canonicalStoragePaths(root);
-  await fs.mkdir(paths.logsDir, { recursive: true });
+  await checkedCanonicalPath(root, paths.logsDir, "directory");
   const reportPath = path.join(paths.logsDir, `migration-${formatTimestamp(now)}.json`);
   const report = {
     version: "0.1.0",
@@ -733,7 +736,7 @@ async function writeMigrationReport(
     warnings: input.warnings,
     checksums: await checksumSummary(input.scan)
   };
-  await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+  await writeCanonicalFile(root, reportPath, `${JSON.stringify(report, null, 2)}\n`);
   return reportPath;
 }
 
@@ -755,34 +758,34 @@ async function checksumSummary(scan: LegacyAtlasScan): Promise<Array<{ path: str
 
 async function ensureCanonicalFolders(root: string, changes: string[]): Promise<void> {
   const paths = canonicalStoragePaths(root);
-  await ensureDirectory(paths.atlasDir, ".lmti", changes);
-  await ensureDirectory(paths.memoryDir, ".lmti/memory", changes);
-  await ensureDirectory(paths.logsDir, ".lmti/logs", changes);
-  await ensureDirectory(paths.experimentsDir, ".lmti/experiments", changes);
+  await ensureDirectory(root, paths.atlasDir, ".lmti", changes);
+  await ensureDirectory(root, paths.memoryDir, ".lmti/memory", changes);
+  await ensureDirectory(root, paths.logsDir, ".lmti/logs", changes);
+  await ensureDirectory(root, paths.experimentsDir, ".lmti/experiments", changes);
 }
 
 async function ensureMemoryFiles(root: string, changes: string[]): Promise<void> {
   const paths = canonicalStoragePaths(root);
-  await ensureFile(path.join(paths.memoryDir, SHORT_TERM_MEMORY_FILE), "[]", ".lmti/memory/short-term.json", changes);
-  await ensureFile(path.join(paths.memoryDir, LONG_TERM_MEMORY_FILE), "[]", ".lmti/memory/long-term.json", changes);
-  await ensureFile(path.join(paths.memoryDir, MEMORY_EVENTS_FILE), "", ".lmti/memory/events.jsonl", changes);
+  await ensureFile(root, path.join(paths.memoryDir, SHORT_TERM_MEMORY_FILE), "[]", ".lmti/memory/short-term.json", changes);
+  await ensureFile(root, path.join(paths.memoryDir, LONG_TERM_MEMORY_FILE), "[]", ".lmti/memory/long-term.json", changes);
+  await ensureFile(root, path.join(paths.memoryDir, MEMORY_EVENTS_FILE), "", ".lmti/memory/events.jsonl", changes);
 }
 
-async function ensureDirectory(directoryPath: string, displayPath: string, changes: string[]): Promise<void> {
+async function ensureDirectory(root: string, directoryPath: string, displayPath: string, changes: string[]): Promise<void> {
   const info = await describePath(directoryPath);
+  await checkedCanonicalPath(root, directoryPath, "directory");
   if (info?.kind === "directory") {
     return;
   }
-  await fs.mkdir(directoryPath, { recursive: true });
   changes.push(`Created ${displayPath}.`);
 }
 
-async function ensureFile(filePath: string, content: string, displayPath: string, changes: string[]): Promise<void> {
-  const info = await describePath(filePath);
-  if (info?.kind === "file") {
+async function ensureFile(root: string, filePath: string, content: string, displayPath: string, changes: string[]): Promise<void> {
+  const checked = await checkedCanonicalPath(root, filePath, "file");
+  if (checked.exists) {
     return;
   }
-  await fs.writeFile(filePath, content, "utf8");
+  await writeCanonicalFile(root, filePath, content, true);
   changes.push(`Created ${displayPath}.`);
 }
 

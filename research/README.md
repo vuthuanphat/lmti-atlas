@@ -4,6 +4,9 @@ This is not current product documentation.
 
 This directory is for research notes.
 
+`archive/reasoning/` preserves the unused MVP placeholder removed from the
+active workspace during [2026-10-11 cleanup](../docs/plans/2026-10-11-cleanup-execution.md).
+
 Not implementation plans.
 
 Not marketing material.

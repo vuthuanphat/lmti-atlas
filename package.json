@@ -1,13 +1,13 @@
 {
   "name": "atlas-root",
-  "version": "0.1.0-alpha.1",
+  "version": "0.2.0-alpha.1",
   "private": true,
   "packageManager": "pnpm@10.13.1",
-  "description": "LMTI monorepo: local AI memory, safety, and skill routing for AI coding agents. @atlas/* is an internal local-alpha namespace.",
+  "description": "LMTI monorepo: project knowledge, privacy and Architecture Studio for AI agents. @atlas/* is an internal local-alpha namespace.",
   "author": "Edgar Vu - Cyno Software",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vuthuanphat6-byte/lmti-atlas.git"
+    "url": "https://github.com/vuthuanphat/lmti-atlas.git"
   },
   "keywords": [
     "ai-agent",
@@ -20,9 +20,13 @@
     "developer-tools"
   ],
   "scripts": {
-    "build": "tsc -b packages/types packages/graph packages/privacy packages/frameworks packages/migration packages/memory packages/security packages/tools packages/agents packages/context packages/compiler packages/kernel packages/mcp packages/reasoning packages/cognition packages/world-model packages/runtime packages/cli apps/playground apps/codex-assistant",
-    "clean": "tsc -b --clean packages/types packages/graph packages/privacy packages/frameworks packages/migration packages/memory packages/security packages/tools packages/agents packages/context packages/compiler packages/kernel packages/mcp packages/reasoning packages/cognition packages/world-model packages/runtime packages/cli apps/playground apps/codex-assistant",
-    "test": "vitest run --dir packages",
+    "web:build": "corepack pnpm web:api:build && corepack pnpm --filter @atlas/web-ui build",
+    "web:api:build": "tsc -p apps/web-api/tsconfig.json",
+    "web:api:test": "node --test apps/web-api/test/*.test.mjs",
+    "web:baseline": "node scripts/web-local-baseline.mjs",
+    "build": "tsc -b packages/types packages/graph packages/privacy packages/frameworks packages/migration packages/memory packages/security packages/tools packages/agents packages/context packages/compiler packages/kernel packages/mcp packages/cognition packages/world-model packages/runtime packages/impact packages/drive packages/cli apps/playground apps/codex-assistant",
+    "clean": "tsc -b --clean packages/types packages/graph packages/privacy packages/frameworks packages/migration packages/memory packages/security packages/tools packages/agents packages/context packages/compiler packages/kernel packages/mcp packages/cognition packages/world-model packages/runtime packages/impact packages/drive packages/cli apps/playground apps/codex-assistant",
+    "test": "vitest run --configLoader native --dir packages",
     "playground": "node apps/playground/dist/index.js",
     "playground:scenario": "node apps/playground/dist/index.js --scenario",
     "codex:assistant": "node apps/codex-assistant/dist/index.js",
@@ -66,15 +70,20 @@
     "framework:verify": "node packages/cli/dist/index.js framework verify-plan"
   },
   "devDependencies": {
-    "@atlas/types": "workspace:*",
     "@atlas/frameworks": "workspace:*",
+    "@atlas/types": "workspace:*",
     "@types/node": "^22.13.14",
     "lmti": "workspace:*",
     "typescript": "^5.8.3",
-    "vitest": "^3.2.4"
+    "vitest": "4.1.12"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   },
-  "license": "Apache-2.0"
+  "license": "Apache-2.0",
+  "pnpm": {
+    "overrides": {
+      "vite": "7.3.7"
+    }
+  }
 }

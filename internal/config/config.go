@@ -56,7 +56,7 @@ func Default() Config {
 		Project: ProjectConfig{ID: "lmti-atlas", Name: "LMTI Atlas", Layer: "independent", Author: "Edgar Vu - Cyno Software"},
 		Storage: StorageConfig{Engine: "sqlite", Path: ".lmti/memory.sqlite"},
 		Publish: PublishConfig{
-			PublicRepo:             "https://github.com/vuthuanphat6-byte/lmti-atlas.git",
+			PublicRepo:             "https://github.com/vuthuanphat/lmti-atlas.git",
 			TargetBranch:           "main",
 			AllowedPublishBranches: []string{"main", "release/*", "publish/*"},
 		},

@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/secrets"
-	"github.com/vuthuanphat6-byte/lmti-atlas/pkg/contract"
+	"github.com/vuthuanphat/lmti-atlas/internal/credentialscan"
+	"github.com/vuthuanphat/lmti-atlas/pkg/contract"
 )
 
 type DefaultGate struct{}
@@ -13,7 +13,7 @@ type DefaultGate struct{}
 func (DefaultGate) Evaluate(_ context.Context, action contract.ActionRequest) (contract.PolicyResult, error) {
 	result := contract.PolicyResult{Decision: contract.DecisionAllow}
 	for _, path := range action.Paths {
-		if secrets.IsProtectedPath(path) {
+		if credentialscan.IsProtectedPath(path) {
 			result.Decision = contract.DecisionBlock
 			result.Errors = append(result.Errors, contract.BoundaryMessage{
 				Code:    contract.ErrorProtectedFileDetected,

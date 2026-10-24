@@ -268,8 +268,13 @@ export function buildContextPack(amfInput: AmfDocument, task: string, options: C
     source: {
       amfVersion: amf.version,
       compiledAt: amf.project.compiledAt,
-      checksum: amf.project.checksum
+      checksum: amf.project.checksum,
+      freshness: options.sourceFreshness ?? {
+        status: "unknown", checkedAt: new Date().toISOString(), scope: "compiler-source-boundary",
+        reasons: ["freshness_not_checked"], checkedFileCount: 0
+      }
     },
+    memorySource: options.memorySource,
     inferredIntent,
     filteredOut: {
       files: filteredOutFiles,
@@ -302,7 +307,11 @@ export function buildContextPack(amfInput: AmfDocument, task: string, options: C
     unresolvedQuestions: selectQuestions(amf.unresolvedQuestions, keywords),
     relatedShortTermMemories,
     relatedLongTermMemories,
-    recommendedSteps: recommendSteps(
+    recommendedSteps: [
+      ...(options.sourceFreshness?.status === "fresh" ? [] : [
+        "Compiled context is stale or unverified. Run `lmti compile`, then recheck sources before relying on this context as current truth."
+      ]),
+      ...recommendSteps(
       scoredModules,
       scoredFiles,
       scoredApi,
@@ -311,7 +320,7 @@ export function buildContextPack(amfInput: AmfDocument, task: string, options: C
       scoredArchitecture,
       relatedShortTermMemories,
       relatedLongTermMemories
-    )
+    )]
   };
 }
 

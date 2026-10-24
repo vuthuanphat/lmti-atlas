@@ -1,12 +1,9 @@
-import { promises as fs } from "node:fs";
-import { createHash, randomUUID } from "node:crypto";
-import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { appendAuditEvent } from "./audit";
+export { AUDIT_FILE, PRIVACY_DIR, appendAuditEvent, readAuditEvents, verifyAuditIntegrity, retainAuditEvents } from "./audit";
 import type {
   AccessDecision,
   AccessRole,
-  AuditEvent,
-  AuditIntegrityReport,
-  AuditRetentionResult,
   BlockedMemory,
   ContextEgressScan,
   HardGateReason,
@@ -21,8 +18,6 @@ import type {
   SensitivityLevel
 } from "@atlas/types";
 
-export const PRIVACY_DIR = "privacy";
-export const AUDIT_FILE = "audit.jsonl";
 export const PREFLIGHT_POLICY_VERSION = "preflight-policy-0.1.0";
 
 const POLICIES: Record<SensitivityLevel, PrivacyPolicy> = {
@@ -254,90 +249,6 @@ export function createSafeSummary(record: PrivacyProtectedRecord): string {
   return `${record.sensitivity} memory${title}; raw content withheld by Cognitive Privacy Layer.`;
 }
 
-export async function appendAuditEvent(cwd: string, event: Omit<AuditEvent, "id" | "timestamp" | "sequence" | "previousHash" | "hash">): Promise<AuditEvent> {
-  await initPrivacyStorage(cwd);
-  const existing = await readAuditFile(cwd);
-  const last = existing[existing.length - 1];
-  const auditWithoutHash = {
-    id: randomUUID(),
-    sequence: (last?.sequence ?? existing.length) + 1,
-    timestamp: new Date().toISOString(),
-    previousHash: last?.hash,
-    ...event
-  };
-  const audit: AuditEvent = {
-    ...auditWithoutHash,
-    hash: hashAuditEvent(auditWithoutHash)
-  };
-  await fs.appendFile(auditPath(cwd), `${JSON.stringify(audit)}\n`, "utf8");
-  return audit;
-}
-
-export async function readAuditEvents(cwd: string, limit = 50): Promise<AuditEvent[]> {
-  const events = await readAuditFile(cwd);
-  return events.slice(Math.max(0, events.length - limit)).reverse();
-}
-
-export async function verifyAuditIntegrity(cwd: string): Promise<AuditIntegrityReport> {
-  const events = await readAuditFile(cwd);
-  const failures: AuditIntegrityReport["failures"] = [];
-
-  for (let index = 0; index < events.length; index += 1) {
-    const event = events[index];
-    if (!event.hash) {
-      failures.push({ sequence: event.sequence, id: event.id, reason: "missing_hash" });
-      continue;
-    }
-
-    const expectedHash = hashAuditEvent(event);
-    if (event.hash !== expectedHash) {
-      failures.push({ sequence: event.sequence, id: event.id, reason: "hash_mismatch" });
-    }
-
-    const previous = events[index - 1];
-    if (previous?.hash && event.previousHash !== previous.hash) {
-      failures.push({ sequence: event.sequence, id: event.id, reason: "previous_hash_mismatch" });
-    }
-
-    if (previous?.sequence !== undefined && event.sequence !== undefined && event.sequence !== previous.sequence + 1) {
-      failures.push({ sequence: event.sequence, id: event.id, reason: "sequence_gap" });
-    }
-  }
-
-  return {
-    valid: failures.length === 0,
-    checked: events.length,
-    failures,
-    checkpointPreviousHash: events[0]?.previousHash
-  };
-}
-
-export async function retainAuditEvents(cwd: string, maxEvents: number): Promise<AuditRetentionResult> {
-  if (!Number.isInteger(maxEvents) || maxEvents < 1) {
-    throw new Error("Audit retention maxEvents must be a positive integer.");
-  }
-
-  await initPrivacyStorage(cwd);
-  const events = await readAuditFile(cwd);
-  if (events.length <= maxEvents) {
-    return { retained: events.length, archived: 0 };
-  }
-
-  const archive = events.slice(0, events.length - maxEvents);
-  const retained = events.slice(events.length - maxEvents);
-  const archiveDirectory = path.resolve(cwd, ".lmti", PRIVACY_DIR, "archive");
-  await fs.mkdir(archiveDirectory, { recursive: true });
-  const archivePath = path.join(archiveDirectory, `audit-${new Date().toISOString().replace(/[:.]/g, "-")}.jsonl`);
-  await fs.writeFile(archivePath, archive.map((event) => JSON.stringify(event)).join("\n") + "\n", "utf8");
-  await fs.writeFile(auditPath(cwd), retained.map((event) => JSON.stringify(event)).join("\n") + "\n", "utf8");
-
-  return {
-    retained: retained.length,
-    archived: archive.length,
-    archivePath
-  };
-}
-
 export async function auditSensitiveAccess(
   cwd: string,
   record: PrivacyProtectedRecord,
@@ -357,47 +268,6 @@ export async function auditSensitiveAccess(
     command: privacyContext.command,
     reason
   });
-}
-
-async function initPrivacyStorage(cwd: string): Promise<void> {
-  const directory = path.resolve(cwd, ".lmti", PRIVACY_DIR);
-  await fs.mkdir(directory, { recursive: true });
-  try {
-    await fs.access(auditPath(cwd));
-  } catch {
-    await fs.writeFile(auditPath(cwd), "", "utf8");
-  }
-}
-
-function auditPath(cwd: string): string {
-  return path.resolve(cwd, ".lmti", PRIVACY_DIR, AUDIT_FILE);
-}
-
-async function readAuditFile(cwd: string): Promise<AuditEvent[]> {
-  await initPrivacyStorage(cwd);
-  const content = await fs.readFile(auditPath(cwd), "utf8");
-  return content
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => JSON.parse(line) as AuditEvent);
-}
-
-function hashAuditEvent(event: Partial<AuditEvent>): string {
-  const canonical = {
-    id: event.id ?? "",
-    sequence: event.sequence ?? null,
-    timestamp: event.timestamp ?? "",
-    action: event.action ?? "",
-    recordId: event.recordId ?? "",
-    sensitivity: event.sensitivity ?? "",
-    role: event.role ?? "",
-    decision: event.decision ?? "",
-    command: event.command ?? "",
-    reason: event.reason ?? "",
-    previousHash: event.previousHash ?? null
-  };
-  return createHash("sha256").update(JSON.stringify(canonical), "utf8").digest("hex");
 }
 
 const ROLE_STRENGTH: Record<AccessRole, number> = {

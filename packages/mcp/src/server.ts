@@ -1,5 +1,6 @@
 import { buildContextPack, inferIntent } from "@atlas/kernel";
-import { createMemory, readAmfDocument, searchMemory, searchMemoryForContext } from "@atlas/memory";
+import { checkCompiledAmfFreshness } from "@atlas/compiler";
+import { createMemory, readAmfDocument, readContextMemory } from "@atlas/memory";
 import type { MemorySensitivity } from "@atlas/types";
 
 export const LMTI_MCP_TOOL_NAMES = [
@@ -40,21 +41,30 @@ export function createLmtiMcpStub(options: LmtiMcpServerOptions = {}) {
     tools: LMTI_MCP_TOOL_NAMES,
     async lmti_get_project_context(input: ProjectContextInput) {
       const amf = await readAmfDocument(undefined, cwd);
+      const sourceFreshness = await checkCompiledAmfFreshness(amf, { cwd });
       const inferredIntent = inferIntent(input.task);
-      const memorySelection = await searchMemoryForContext(input.task, { cwd, limit: 16, taskIntent: inferredIntent });
+      const memorySelection = await readContextMemory(input.task, { cwd, limit: 16, taskIntent: inferredIntent,
+        privacyContext: { role: "external_model", projectId: amf.project.name, purpose: "MCP context", command: "context", includeSecret: false, includeRaw: false, timestamp: new Date().toISOString() } });
       return buildContextPack(amf, input.task, {
         memories: memorySelection.results,
         memoriesFilteredOut: memorySelection.filteredOut,
-        inferredIntent
+        inferredIntent,
+        sourceFreshness,
+        memorySource: { source: memorySelection.source, completeness: memorySelection.completeness }
       });
     },
     async lmti_get_related_files(input: RelatedFilesInput) {
       const amf = await readAmfDocument(undefined, cwd);
+      const freshness = await checkCompiledAmfFreshness(amf, { cwd });
+      // This legacy list-only method cannot carry a freshness warning.
+      if (freshness.status !== "fresh") throw new Error("COMPILED_CONTEXT_UNVERIFIED: recompile and use lmti_get_project_context for freshness details.");
       const context = buildContextPack(amf, input.task, { inferredIntent: inferIntent(input.task) });
       return context.relatedFiles;
     },
     async lmti_get_memory(input: MemoryInput) {
-      return searchMemory(input.query, { cwd, limit: 16 });
+      const amf = await readAmfDocument(undefined, cwd);
+      return (await readContextMemory(input.query, { cwd, limit: 16,
+        privacyContext: { role: "external_model", projectId: amf.project.name, purpose: "MCP memory", command: "context", includeSecret: false, includeRaw: false, timestamp: new Date().toISOString() } })).results;
     },
     async lmti_record_task_result(input: TaskResultInput) {
       return createMemory(

@@ -105,6 +105,50 @@ export interface CompileOptions {
   lmtiIgnoreFile?: string;
 }
 
+export type CompiledAmfFreshnessReason =
+  | "compiled_metadata_invalid"
+  | "compiler_changed"
+  | "source_boundary_changed"
+  | "source_root_not_authorized"
+  | "source_inventory_changed"
+  | "source_content_changed"
+  | "source_not_fully_hashed"
+  | "source_unreadable"
+  | "source_changed_during_check"
+  | "scan_budget_exceeded";
+
+export interface CompiledAmfFreshness {
+  status: "fresh" | "stale" | "unknown";
+  checkedAt: string;
+  scope: "compiler-source-boundary";
+  reasons: CompiledAmfFreshnessReason[];
+  checkedFileCount: number;
+}
+
+export interface CheckCompiledAmfFreshnessOptions extends CompileOptions {
+  /** Authorized checkout. Artifact metadata cannot extend this filesystem boundary. */
+  cwd?: string;
+  maxFiles?: number;
+  maxTotalBytes?: number;
+  now?: Date;
+}
+
+interface SourceScanBudget {
+  maxFiles: number;
+  maxTotalBytes: number;
+  maxEntries: number;
+  checkedFiles: number;
+  readBytes: number;
+  visitedEntries: number;
+  deadline: number;
+}
+
+class SourceScanError extends Error {
+  constructor(readonly reason: CompiledAmfFreshnessReason) {
+    super(reason);
+  }
+}
+
 interface SourceBoundaryRules {
   ignoredDirectories: string[];
   ignoredFiles: string[];
@@ -186,7 +230,7 @@ export async function compileProject(projectPath: string, options: CompileOption
       module: moduleName,
       sizeBytes: observed.sizeBytes,
       lines: observed.text ? countLines(observed.text) : 0,
-      hash: hashText(observed.text ?? `${observed.relativePath}:${observed.sizeBytes}`),
+      hash: hashObservedFile(observed),
       summary: parsed.summary,
       privacy: parsed.privacy,
       riskFlags: parsed.riskFlags
@@ -293,14 +337,117 @@ export async function compileProject(projectPath: string, options: CompileOption
   };
 }
 
-async function scanProject(root: string, maxFileBytes: number, sourceBoundary: SourceBoundaryRules): Promise<ObservedFile[]> {
+/**
+ * Read-only check against the compiler's own inventory and content-hash semantics.
+ * A successful scan is an as-of observation, not an atomic snapshot or a claim that
+ * uncompiled/ignored content is understood. No paths or source text leave this API.
+ */
+export async function checkCompiledAmfFreshness(
+  amf: AmfDocument,
+  options: CheckCompiledAmfFreshnessOptions = {}
+): Promise<CompiledAmfFreshness> {
+  const requestedTime = options.now;
+  const checkedTime = requestedTime instanceof Date && Number.isFinite(requestedTime.getTime()) ? requestedTime : undefined;
+  const budget: SourceScanBudget = {
+    maxFiles: options.maxFiles ?? 10_000,
+    maxTotalBytes: options.maxTotalBytes ?? 64 * 1024 * 1024,
+    maxEntries: Math.min((options.maxFiles ?? 10_000) * 8 + 1024, 100_000),
+    checkedFiles: 0,
+    readBytes: 0,
+    visitedEntries: 0,
+    deadline: Date.now() + 15_000
+  };
+  const finish = (status: CompiledAmfFreshness["status"], ...reasons: CompiledAmfFreshnessReason[]): CompiledAmfFreshness => ({
+    status,
+    checkedAt: (checkedTime ?? new Date()).toISOString(),
+    scope: "compiler-source-boundary",
+    reasons,
+    checkedFileCount: budget.checkedFiles
+  });
+
+  try {
+    const project = amf?.project;
+    const boundary = project?.sourceBoundary;
+    if (!project?.compiledAt || !Number.isFinite(Date.parse(project.compiledAt)) || !project.compiler || !boundary || !project.root ||
+        !boundary.root || !/^[a-f0-9]{64}$/.test(project.checksum) || !Array.isArray(amf.files) ||
+        !Array.isArray(boundary.ignoredDirectories) || !Array.isArray(boundary.ignoredFiles) ||
+        !Number.isSafeInteger(boundary.maxFileBytes) || boundary.maxFileBytes < 1 ||
+        amf.files.some((file) => typeof file.path !== "string" || isPathTraversal(file.path) ||
+          !/^[a-f0-9]{64}$/.test(file.hash)) || new Set(amf.files.map((file) => file.path)).size !== amf.files.length) {
+      return finish("unknown", "compiled_metadata_invalid");
+    }
+    if (!Number.isSafeInteger(budget.maxFiles) || budget.maxFiles < 1 || budget.maxFiles > 100_000 ||
+        !Number.isSafeInteger(budget.maxTotalBytes) || budget.maxTotalBytes < 1 || budget.maxTotalBytes > 256 * 1024 * 1024) {
+      return finish("unknown", "scan_budget_exceeded");
+    }
+    if (project.compiler.name !== "Knowledge Compiler v0" || project.compiler.version !== COMPILER_VERSION ||
+        amf.version !== AMF_VERSION || project.amfVersion !== AMF_VERSION) {
+      return finish("stale", "compiler_changed");
+    }
+
+    const authorizedRoot = await fs.realpath(path.resolve(options.cwd ?? process.cwd()));
+    const declaredRoot = path.resolve(project.root);
+    if (!isPathInside(authorizedRoot, declaredRoot) || path.resolve(boundary.root) !== declaredRoot) {
+      return finish("unknown", "source_root_not_authorized");
+    }
+    const realRoot = await fs.realpath(declaredRoot);
+    if (!isPathInside(authorizedRoot, realRoot)) {
+      return finish("unknown", "source_root_not_authorized");
+    }
+
+    const maxFileBytes = options.maxFileBytes ?? boundary.maxFileBytes;
+    if (maxFileBytes !== boundary.maxFileBytes) return finish("stale", "source_boundary_changed");
+    const ignoreFile = options.lmtiIgnoreFile ?? LMTI_IGNORE_FILE;
+    const sourceBoundary = await createSourceBoundary(realRoot, ignoreFile);
+    if (JSON.stringify(sourceBoundary.ignoredDirectories) !== JSON.stringify(boundary.ignoredDirectories) ||
+        JSON.stringify(sourceBoundary.ignoredFiles) !== JSON.stringify(boundary.ignoredFiles)) {
+      return finish("stale", "source_boundary_changed");
+    }
+    const observedFiles = await scanProject(realRoot, maxFileBytes, sourceBoundary, budget);
+    // Re-read ignore policy so a policy change during the traversal cannot be called fresh.
+    const finalBoundary = await createSourceBoundary(realRoot, ignoreFile);
+    if (JSON.stringify(sourceBoundary.ignoredFiles) !== JSON.stringify(finalBoundary.ignoredFiles)) {
+      return finish("unknown", "source_changed_during_check");
+    }
+    const previous = new Map(amf.files.map((file) => [file.path, file.hash]));
+    if (observedFiles.length !== previous.size || observedFiles.some((file) => !previous.has(file.relativePath))) {
+      return finish("stale", "source_inventory_changed");
+    }
+    if (observedFiles.some((file) => previous.get(file.relativePath) !== hashObservedFile(file))) {
+      return finish("stale", "source_content_changed");
+    }
+    // Legacy skipped-file hashes contain only path + size. They cannot prove freshness.
+    // Replacement characters also mean distinct input bytes may have decoded alike.
+    if (observedFiles.some((file) => file.text === null || file.text.includes("\ufffd"))) {
+      return finish("unknown", "source_not_fully_hashed");
+    }
+    return finish("fresh");
+  } catch (error) {
+    return finish("unknown", error instanceof SourceScanError ? error.reason : "source_unreadable");
+  }
+}
+
+function hashObservedFile(file: ObservedFile): string {
+  return hashText(file.text ?? `${file.relativePath}:${file.sizeBytes}`);
+}
+
+async function scanProject(root: string, maxFileBytes: number, sourceBoundary: SourceBoundaryRules, budget?: SourceScanBudget): Promise<ObservedFile[]> {
   const observed: ObservedFile[] = [];
 
-  async function walk(directory: string): Promise<void> {
+  async function walk(directory: string, depth = 0): Promise<void> {
+    if (budget && (depth > 64 || Date.now() > budget.deadline)) throw new SourceScanError("scan_budget_exceeded");
+    const realDirectory = await fs.realpath(directory);
+    if (!isPathInside(root, realDirectory)) throw new SourceScanError("source_unreadable");
+    const beforeDirectory = budget ? await fs.stat(directory) : undefined;
     const entries = await fs.readdir(directory, { withFileTypes: true });
+    if (budget && budget.visitedEntries + entries.length > budget.maxEntries) throw new SourceScanError("scan_budget_exceeded");
     entries.sort((a, b) => a.name.localeCompare(b.name));
 
     for (const entry of entries) {
+      if (budget) {
+        budget.visitedEntries += 1;
+        if (Date.now() > budget.deadline) throw new SourceScanError("scan_budget_exceeded");
+      }
       if (entry.isSymbolicLink()) {
         continue;
       }
@@ -312,7 +459,7 @@ async function scanProject(root: string, maxFileBytes: number, sourceBoundary: S
         if (isIgnoredDirectory(entry.name, relativeDirectory, sourceBoundary)) {
           continue;
         }
-        await walk(absolutePath);
+        await walk(absolutePath, depth + 1);
         continue;
       }
 
@@ -329,6 +476,8 @@ async function scanProject(root: string, maxFileBytes: number, sourceBoundary: S
         continue;
       }
 
+      if (budget && observed.length >= budget.maxFiles) throw new SourceScanError("scan_budget_exceeded");
+
       const stats = await fs.stat(absolutePath);
       const extension = path.extname(entry.name).toLowerCase();
 
@@ -341,6 +490,7 @@ async function scanProject(root: string, maxFileBytes: number, sourceBoundary: S
           text: null,
           skippedReason: "file-too-large"
         });
+        if (budget) budget.checkedFiles += 1;
         continue;
       }
 
@@ -353,10 +503,21 @@ async function scanProject(root: string, maxFileBytes: number, sourceBoundary: S
           text: null,
           skippedReason: "non-text"
         });
+        if (budget) budget.checkedFiles += 1;
         continue;
       }
 
+      if (budget && budget.readBytes + stats.size > budget.maxTotalBytes) throw new SourceScanError("scan_budget_exceeded");
       const text = await fs.readFile(absolutePath, "utf8");
+      if (budget) {
+        budget.readBytes += Buffer.byteLength(text);
+        if (budget.readBytes > budget.maxTotalBytes) throw new SourceScanError("scan_budget_exceeded");
+        const after = await fs.stat(absolutePath);
+        if (stats.size !== after.size || stats.mtimeMs !== after.mtimeMs || stats.ctimeMs !== after.ctimeMs || stats.ino !== after.ino) {
+          throw new SourceScanError("source_changed_during_check");
+        }
+        budget.checkedFiles += 1;
+      }
       observed.push({
         absolutePath,
         relativePath,
@@ -365,6 +526,23 @@ async function scanProject(root: string, maxFileBytes: number, sourceBoundary: S
         text: text.includes("\u0000") ? null : text,
         skippedReason: text.includes("\u0000") ? "binary-like-text" : undefined
       });
+    }
+    if (beforeDirectory) {
+      // Directory timestamps can remain unchanged for rapid mutations. Recheck
+      // the observed inventory as well so a same-tick addition is not fresh.
+      const afterEntries = await fs.readdir(directory, { withFileTypes: true });
+      afterEntries.sort((a, b) => a.name.localeCompare(b.name));
+      if (entries.length !== afterEntries.length || entries.some((entry, index) => {
+        const after = afterEntries[index];
+        return entry.name !== after.name || entry.isFile() !== after.isFile() ||
+          entry.isDirectory() !== after.isDirectory() || entry.isSymbolicLink() !== after.isSymbolicLink();
+      })) {
+        throw new SourceScanError("source_changed_during_check");
+      }
+      const afterDirectory = await fs.stat(directory);
+      if (beforeDirectory.mtimeMs !== afterDirectory.mtimeMs || beforeDirectory.ctimeMs !== afterDirectory.ctimeMs || beforeDirectory.ino !== afterDirectory.ino) {
+        throw new SourceScanError("source_changed_during_check");
+      }
     }
   }
 
@@ -941,7 +1119,7 @@ async function createSourceBoundary(root: string, ignoreFileName: string): Promi
     ignoredFiles: [
       ...IGNORED_FILE_PATTERNS.map((pattern) => pattern.source),
       ...IGNORED_PATH_PATTERNS.map((pattern) => pattern.source),
-      ...ignoreRules.map((rule) => `${LMTI_IGNORE_FILE}:${rule.raw}`)
+      ...ignoreRules.map((rule) => `${normalizePath(ignoreFileName)}:${rule.raw}`)
     ],
     ignoreRules
   };
@@ -950,7 +1128,14 @@ async function createSourceBoundary(root: string, ignoreFileName: string): Promi
 async function readLmtiIgnoreRules(root: string, ignoreFileName: string): Promise<IgnoreRule[]> {
   let text = "";
   try {
-    text = await fs.readFile(path.join(root, ignoreFileName), "utf8");
+    const ignorePath = path.resolve(root, ignoreFileName);
+    if (!isPathInside(root, ignorePath)) throw new SourceScanError("source_root_not_authorized");
+    const realIgnorePath = await fs.realpath(ignorePath);
+    if (!isPathInside(root, realIgnorePath)) throw new SourceScanError("source_root_not_authorized");
+    const stats = await fs.stat(realIgnorePath);
+    if (stats.size > 64 * 1024) throw new SourceScanError("scan_budget_exceeded");
+    text = await fs.readFile(realIgnorePath, "utf8");
+    if (Buffer.byteLength(text) > 64 * 1024) throw new SourceScanError("scan_budget_exceeded");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
       throw error;

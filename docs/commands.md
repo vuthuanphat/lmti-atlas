@@ -7,8 +7,9 @@ JSON commands for AI agents.
 
 Core rules:
 
-- `check`, `inspect`, `route`, `show`, `validate`, and `doctor` commands do not
-  modify project state.
+- Choose read-only inspection variants deliberately. `doctor --fix`, initialization,
+  compilation and legacy migration can write local state; framework detection
+  can create its configuration. Run smoke workflows in a disposable fixture.
 - Risky workflows must go through policy, privacy, or publish gates.
 - The simplified command-system JSON paths use the `lmti.cli.v1` envelope.
   Legacy local-alpha and diagnostic commands are still being normalized.
@@ -32,6 +33,11 @@ Status note: `lmti migrate from-json` is implemented in the Go core path and is
 planned as the friendly TypeScript CLI alias. The current TypeScript migration
 surface is still `lmti memory migrate-json`, so do not use `migrate from-json`
 as a release claim until parity is verified.
+
+Both legacy import write paths are now blocked pending lossless policy,
+provenance and lifecycle mapping; use dry-run inventory and keep original stores.
+Ordinary memory commands remain active. For topology/Agent commands use the
+[Studio guide](topology-studio.md) and [support map](component-support.md).
 
 ## Simple Aliases
 

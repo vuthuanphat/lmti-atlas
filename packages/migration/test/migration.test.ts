@@ -31,7 +31,7 @@ function legacyAmf(name: string): AmfDocument {
 }
 
 async function writeJson(filePath: string, value: unknown): Promise<void> {
-  await writeFile(filePath, JSON.stringify(value, null, 2), "utf8");
+  await writeFile(filePath, JSON.stringify(value, null, 2), { encoding: "utf8", mode: 0o600 });
 }
 
 describe("Atlas to LMTI migration", () => {
@@ -55,7 +55,7 @@ describe("Atlas to LMTI migration", () => {
   it("prefers existing .lmti state when legacy and canonical storage both exist", async () => {
     const cwd = await createWorkspace();
     await mkdir(path.join(cwd, ".atlas"), { recursive: true });
-    await mkdir(path.join(cwd, ".lmti"), { recursive: true });
+    await mkdir(path.join(cwd, ".lmti"), { recursive: true, mode: 0o700 });
     await writeJson(path.join(cwd, ".atlas", "project.amf.json"), legacyAmf("legacy-project"));
     await writeJson(path.join(cwd, ".lmti", "project.amf.json"), legacyAmf("canonical-project"));
 

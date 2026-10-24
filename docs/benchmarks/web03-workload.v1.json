@@ -1,0 +1,21 @@
+{
+  "schema": "lmti.web03.workload.v1",
+  "purpose": "Exploratory local baseline before acceptance thresholds and human comparison",
+  "registeredProjects": 500,
+  "denseProjects": 50,
+  "densePinnedFirst": true,
+  "denseDocument": {"components": 100, "releases": 100, "assets": 200, "bindings": 500, "workItems": 500},
+  "minimalDocument": {"assets": 1},
+  "profileServers": 2,
+  "pageSize": 50,
+  "warmupsPerOperation": 3,
+  "samplesPerOperation": 30,
+  "operationConcurrency": 1,
+  "percentile": "nearest rank: sorted[ceil(p*n)-1]",
+  "operations": ["dense_first_page", "dense_summary", "dense_profile", "codex_status", "codex_export", "cursor_export", "native_direct_read", "native_direct_generate"],
+  "freshProcessMeasurements": ["launcher_no_browser_ready", "api_ready", "authenticated_bootstrap", "first_dense_page"],
+  "memoryScope": "Node API process RSS/heap at quiescent checkpoints; excludes browser and transient native/Python descendants",
+  "excluded": ["live IoT", "provider network/OAuth", "actual agent/model/client turn", "human setup/update/recovery time", "OS cold cache guarantee", "shared/multi-user service"],
+  "acceptanceThresholds": null,
+  "acceptancePassed": false
+}

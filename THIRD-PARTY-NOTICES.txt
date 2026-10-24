@@ -1,0 +1,35 @@
+LMTI v0.2.0-alpha.1 - Third-party notices
+
+LMTI source is Apache-2.0; see LICENSE. Dependencies retain their own licenses.
+This document does not relicense third-party components.
+
+Windows runtime distribution:
+- Qt 6.12.0 Core, SQL and the SQLite driver plugin are dynamically linked.
+  The open-source licensing alternatives and component-specific notices are in
+  share/lmti/third-party/qt (including SPDX SBOM and license/attribution texts).
+  Qt source revision recorded by the publisher SBOM:
+  025bdad181de241e81bf853c8a2d7bf3d19261a9.
+  Corresponding Qt source is provided alongside the offline candidate assets.
+  See QT-SOURCE.md for the exact archive/revision and build-configuration files.
+  Users may replace/rebuild the dynamically linked Qt libraries. No extra
+  restriction on modification or reverse engineering for debugging those
+  modifications is imposed by LMTI. Keep the matching ABI/plugin layout.
+  Official licensing: https://doc.qt.io/qt-6/licensing.html
+  Qt source: https://code.qt.io/cgit/qt/qtbase.git/
+- React, React DOM and Scheduler: MIT; license texts under
+  share/lmti/third-party/web. See the bundled dependency inventory for versions.
+- Other Qt-incorporated third-party components retain the notices and licenses
+  in the Qt source and SPDX/license inventory. Microsoft runtime prerequisites
+  are supplied by Microsoft; LMTI does not relicense them.
+
+LMTI artwork:
+The logo and eight navigation icons were generated with Image AI for this
+project on 2026-10-22. Source PNGs and delivery derivatives are publisher assets
+provided under the repository license to the extent the publisher holds rights.
+No third-party icon library or runtime generation is required. Historical UI
+reference images are design evidence; no fonts are bundled by the web UI.
+
+Node.js and Python are external prerequisites, not included runtime binaries.
+Development-only tools (TypeScript, Vite, Vitest, esbuild and build tooling) are
+not advertised as part of the installed application. Their lockfile inventory
+and license metadata are retained for build reproducibility.

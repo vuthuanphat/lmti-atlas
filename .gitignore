@@ -17,6 +17,16 @@ credentials/
 .atlas/
 .agents/
 .codex/
+.lmti-client/
+.lmti-web-broker.lock
+.lmti-web-broker.json
+.lmti-web-broker.*.tmp
+# Generated local workspace locators and grants (never publisher sources)
+lmti-workspace.json
+library-grants.json
+Open-LMTI.cmd
+Open-LMTI.ps1
+.cursor/mcp.json
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -49,6 +59,7 @@ coverage/
 node_modules/
 .pnpm-store/
 .venv/
+.tools/
 venv/
 __pycache__/
 
@@ -56,7 +67,12 @@ __pycache__/
 dist/
 build/
 out/
+.playwright-cli/
+output/playwright/
 *.tsbuildinfo
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
 
 # OS and editor files
 .DS_Store

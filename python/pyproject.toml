@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lmti-topology-sdk"
+version = "0.2.0a1"
+description = "Scoped local Agent access to the LMTI C++ topology runtime"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+dependencies = []
+
+[project.scripts]
+lmti-topology-mcp = "lmti_topology.mcp:main"
+lmti-project-mcp = "lmti_project.mcp:main"
+lmti-impact-mcp = "lmti_impact.mcp:main"
+lmti-agent-mcp = "lmti_agent.mcp:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

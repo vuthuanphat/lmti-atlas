@@ -5,10 +5,10 @@ import (
 	"io"
 	"os"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/config"
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/migrate"
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/output"
-	"github.com/vuthuanphat6-byte/lmti-atlas/pkg/contract"
+	"github.com/vuthuanphat/lmti-atlas/internal/config"
+	"github.com/vuthuanphat/lmti-atlas/internal/migrate"
+	"github.com/vuthuanphat/lmti-atlas/internal/output"
+	"github.com/vuthuanphat/lmti-atlas/pkg/contract"
 )
 
 type AdapterInspection struct {

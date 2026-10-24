@@ -6,11 +6,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/config"
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/gitcheck"
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/output"
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/thoth"
-	"github.com/vuthuanphat6-byte/lmti-atlas/pkg/contract"
+	"github.com/vuthuanphat/lmti-atlas/internal/config"
+	"github.com/vuthuanphat/lmti-atlas/internal/gitcheck"
+	"github.com/vuthuanphat/lmti-atlas/internal/output"
+	"github.com/vuthuanphat/lmti-atlas/internal/thoth"
+	"github.com/vuthuanphat/lmti-atlas/pkg/contract"
 )
 
 type DoctorCheck struct {

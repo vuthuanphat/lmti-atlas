@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/secrets"
+	"github.com/vuthuanphat/lmti-atlas/internal/credentialscan"
 )
 
 func Validate(root string) ValidationReport {
@@ -177,7 +177,7 @@ func addJSONEnvelopeCheck(report *ValidationReport) {
 }
 
 func hasSecretLikeContent(content string) bool {
-	return secrets.ContainsSecretLikeContent(content)
+	return credentialscan.ContainsSecretLikeContent(content)
 }
 
 func hasCheckStatus(report ValidationReport, status string) bool {

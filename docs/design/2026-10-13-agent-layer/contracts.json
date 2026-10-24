@@ -1,0 +1,282 @@
+{
+  "status": "M1 design fixture; not a runtime export",
+  "liveIoT": false,
+  "requests": [
+    {
+      "schema": "lmti.agent.request.v1",
+      "operation": "project.context",
+      "arguments": {
+        "limit": 100
+      }
+    },
+    {
+      "schema": "lmti.agent.request.v1",
+      "operation": "project.observations",
+      "arguments": {
+        "deviceId": "machine-a",
+        "metrics": [
+          "firmware_version"
+        ],
+        "limit": 10
+      }
+    }
+  ],
+  "responses": {
+    "declaredContext": {
+      "schema": "lmti.agent.response.v1",
+      "operation": "project.context",
+      "status": "ok",
+      "scope": {
+        "projectId": "factory-monitor",
+        "site": "factory-demo",
+        "modelTarget": "external",
+        "classification": "public",
+        "policyRevision": "fixture-policy-v1"
+      },
+      "sources": [
+        {
+          "sourceId": "native-demo",
+          "kind": "native_project",
+          "version": {
+            "type": "owner_revision",
+            "value": 1
+          },
+          "checkedAt": "2026-10-13T00:00:00Z",
+          "authority": "declared_structure",
+          "freshness": {
+            "state": "checked",
+            "basis": "saved_owner_revision",
+            "sampleAt": null,
+            "ttlSeconds": null
+          }
+        }
+      ],
+      "evidence": [
+        {
+          "evidenceId": "fixture-binding-evidence",
+          "sourceId": "native-demo",
+          "sourceRevision": 1,
+          "reference": {
+            "kind": "binding",
+            "sourceEntityId": "fixture-binding"
+          },
+          "basis": "desired_declaration"
+        }
+      ],
+      "completeness": {
+        "state": "complete",
+        "coverage": "authorized fixture query only",
+        "reasons": [],
+        "nextCursor": null
+      },
+      "data": {
+        "entities": [
+          {
+            "identity": {
+              "sourceId": "native-demo",
+              "kind": "component",
+              "sourceEntityId": "sensor-firmware"
+            },
+            "label": "Sensor Firmware",
+            "semantics": "declared",
+            "classification": "public",
+            "evidenceIds": []
+          },
+          {
+            "identity": {
+              "sourceId": "native-demo",
+              "kind": "device",
+              "sourceEntityId": "machine-a"
+            },
+            "label": "Machine A",
+            "semantics": "declared",
+            "classification": "public",
+            "evidenceIds": []
+          }
+        ],
+        "relations": [
+          {
+            "identity": {
+              "sourceId": "native-demo",
+              "kind": "relation",
+              "sourceEntityId": "fixture-binding"
+            },
+            "type": "deployed_to_desired",
+            "from": {
+              "sourceId": "native-demo",
+              "kind": "component",
+              "sourceEntityId": "sensor-firmware"
+            },
+            "to": {
+              "sourceId": "native-demo",
+              "kind": "device",
+              "sourceEntityId": "machine-a"
+            },
+            "semantics": "desired",
+            "evidenceIds": [
+              "fixture-binding-evidence"
+            ]
+          }
+        ],
+        "observations": []
+      },
+      "unknowns": [
+        {
+          "code": "SOURCE_NOT_CONFIGURED",
+          "field": "observedVersion",
+          "entity": {
+            "sourceId": "native-demo",
+            "kind": "device",
+            "sourceEntityId": "machine-a"
+          }
+        }
+      ],
+      "conflicts": [],
+      "error": null
+    },
+    "partialContext": {
+      "schema": "lmti.agent.response.v1",
+      "operation": "project.context",
+      "status": "partial",
+      "scope": {
+        "projectId": "factory-monitor",
+        "site": "factory-demo",
+        "modelTarget": "external",
+        "classification": "public",
+        "policyRevision": "fixture-policy-v1"
+      },
+      "sources": [
+        {
+          "sourceId": "native-demo",
+          "kind": "native_project",
+          "version": {
+            "type": "owner_revision",
+            "value": 1
+          },
+          "checkedAt": "2026-10-13T00:00:00Z",
+          "authority": "declared_structure",
+          "freshness": {
+            "state": "checked",
+            "basis": "saved_owner_revision",
+            "sampleAt": null,
+            "ttlSeconds": null
+          }
+        }
+      ],
+      "evidence": [
+        {
+          "evidenceId": "fixture-binding-evidence",
+          "sourceId": "native-demo",
+          "sourceRevision": 1,
+          "reference": {
+            "kind": "binding",
+            "sourceEntityId": "fixture-binding"
+          },
+          "basis": "desired_declaration"
+        }
+      ],
+      "completeness": {
+        "state": "partial",
+        "coverage": "bounded authorized owner window",
+        "reasons": [
+          "OWNER_WINDOW_LIMIT"
+        ],
+        "nextCursor": null
+      },
+      "data": {
+        "entities": [
+          {
+            "identity": {
+              "sourceId": "native-demo",
+              "kind": "component",
+              "sourceEntityId": "sensor-firmware"
+            },
+            "label": "Sensor Firmware",
+            "semantics": "declared",
+            "classification": "public",
+            "evidenceIds": []
+          },
+          {
+            "identity": {
+              "sourceId": "native-demo",
+              "kind": "device",
+              "sourceEntityId": "machine-a"
+            },
+            "label": "Machine A",
+            "semantics": "declared",
+            "classification": "public",
+            "evidenceIds": []
+          }
+        ],
+        "relations": [
+          {
+            "identity": {
+              "sourceId": "native-demo",
+              "kind": "relation",
+              "sourceEntityId": "fixture-binding"
+            },
+            "type": "deployed_to_desired",
+            "from": {
+              "sourceId": "native-demo",
+              "kind": "component",
+              "sourceEntityId": "sensor-firmware"
+            },
+            "to": {
+              "sourceId": "native-demo",
+              "kind": "device",
+              "sourceEntityId": "machine-a"
+            },
+            "semantics": "desired",
+            "evidenceIds": [
+              "fixture-binding-evidence"
+            ]
+          }
+        ],
+        "observations": []
+      },
+      "unknowns": [
+        {
+          "code": "SOURCE_NOT_CONFIGURED",
+          "field": "observedVersion",
+          "entity": {
+            "sourceId": "native-demo",
+            "kind": "device",
+            "sourceEntityId": "machine-a"
+          }
+        }
+      ],
+      "conflicts": [],
+      "error": null
+    },
+    "observationsNotConfigured": {
+      "schema": "lmti.agent.response.v1",
+      "operation": "project.observations",
+      "status": "error",
+      "scope": {
+        "projectId": "factory-monitor",
+        "site": "factory-demo",
+        "modelTarget": "external",
+        "classification": "public",
+        "policyRevision": "fixture-policy-v1"
+      },
+      "sources": [],
+      "evidence": [],
+      "completeness": {
+        "state": "partial",
+        "coverage": "no observation source configured",
+        "reasons": [
+          "NOT_SUPPORTED"
+        ],
+        "nextCursor": null
+      },
+      "data": null,
+      "unknowns": [],
+      "conflicts": [],
+      "error": {
+        "code": "NOT_SUPPORTED",
+        "message": "Observation source is not configured for this scope.",
+        "retryable": false
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -26,6 +26,7 @@ import {
   initProjectMemoryStorage,
   listLessonCandidates,
   listMemory,
+  migrateJsonMemoryToProjectMemory,
   LongTermMemory,
   promoteMemory,
   recordTaskDone,
@@ -625,6 +626,52 @@ describe("Memory Core MVP-2", () => {
 
     expect(result.results[0]?.mode).toBe("summary");
     expect(JSON.stringify(result.results)).not.toContain("Internal implementation detail");
+  });
+});
+
+describe("Legacy JSON migration safety", () => {
+  it("inventories every legacy scope without exposing records or changing either store", async () => {
+    const cwd = await createWorkspace();
+    const existing = await addProjectMemory({ content: "Existing local workflow" }, { cwd });
+    const dbPath = path.join(cwd, ".lmti", "memory", "project-memory.sqlite");
+    const before = await readFile(dbPath);
+    const record = {
+      id: "legacy-test", title: "Ordinary fixture", content: "Ordinary fixture content",
+      sensitivity: "secret", promptPolicy: "do_not_prompt", projectId: "fixture",
+      sourceRefs: ["docs/fixture.md:1"], status: "active", kind: "lesson"
+    };
+    const sources = ["long-term.json", "lessons.json", "short-term.json"];
+    for (const source of sources) {
+      await writeFile(path.join(cwd, ".lmti", "memory", source), JSON.stringify([record]));
+    }
+    const inventory = await migrateJsonMemoryToProjectMemory({ cwd, dryRun: true });
+    expect(inventory).toMatchObject({ imported: 0, skipped: 0, blocked: 3, dryRun: true });
+    expect(JSON.stringify(inventory)).not.toContain(record.content);
+    expect(JSON.stringify(inventory)).not.toContain(record.sourceRefs[0]);
+    await expect(migrateJsonMemoryToProjectMemory({ cwd })).rejects.toThrow("LEGACY_MEMORY_MIGRATION_BLOCKED");
+    expect(await readFile(dbPath)).toEqual(before);
+    for (const source of sources) {
+      expect(JSON.parse(await readFile(path.join(cwd, ".lmti", "memory", source), "utf8"))).toEqual([record]);
+    }
+    expect((await getProjectMemoryStats({ cwd })).total).toBe(1);
+    expect((await searchProjectMemory("Existing local workflow", { cwd }))[0]?.item.id).toBe(existing.id);
+  });
+
+  it("rejects malformed legacy input rather than silently treating it as an empty successful import", async () => {
+    const cwd = await createWorkspace();
+    await initProjectMemoryStorage(cwd);
+    const file = path.join(cwd, ".lmti", "memory", "long-term.json");
+    for (const value of ["{", "{}", "[null]", "[[]]", JSON.stringify(Array.from({ length: 10_001 }, () => ({}))), " ".repeat(16 * 1024 * 1024 + 1)]) {
+      await writeFile(file, value);
+      await expect(migrateJsonMemoryToProjectMemory({ cwd, dryRun: true })).rejects.toThrow("LEGACY_MEMORY_INVALID");
+    }
+    expect((await getProjectMemoryStats({ cwd })).total).toBe(0);
+  });
+
+  it("leaves an empty workspace untouched when no legacy data exists", async () => {
+    const cwd = await createWorkspace();
+    expect(await migrateJsonMemoryToProjectMemory({ cwd })).toMatchObject({ imported: 0, blocked: 0 });
+    await expect(readFile(path.join(cwd, ".lmti", "memory", "project-memory.sqlite"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 });
 

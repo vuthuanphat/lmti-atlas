@@ -1,13 +1,15 @@
 package migrate
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/config"
-	"github.com/vuthuanphat6-byte/lmti-atlas/pkg/contract"
+	"github.com/vuthuanphat/lmti-atlas/internal/config"
+	"github.com/vuthuanphat/lmti-atlas/pkg/contract"
 )
 
 func TestParseLegacyMemoryPreservesUnknownMetadata(t *testing.T) {
@@ -41,5 +43,33 @@ func TestFromJSONDryRunBlocksSecretLikeFile(t *testing.T) {
 	}
 	if len(report.BlockedFiles) != 1 {
 		t.Fatalf("blocked files %#v", report.BlockedFiles)
+	}
+}
+
+func TestFromJSONWriteGuardPreservesPolicySourceAndTarget(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, ".lmti")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(dir, "memory.json")
+	legacy := []byte(`[{"title":"Ordinary fixture","content":"Ordinary text","sensitivity":"secret","promptPolicy":"do_not_prompt","sourceRefs":["fixture.md:1"]}]`)
+	if err := os.WriteFile(source, legacy, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(dir, "memory.sqlite")
+	before := []byte("existing target fixture; must not be opened")
+	if err := os.WriteFile(target, before, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	report, _, errors := FromJSON(context.Background(), root, config.Default(), FromJSONOptions{})
+	if report.ImportedRecords != 0 || len(errors) != 1 || !strings.Contains(errors[0].Message, "LEGACY_MEMORY_MIGRATION_BLOCKED") {
+		t.Fatalf("unsafe migration was not blocked: %#v", errors)
+	}
+	for file, expected := range map[string][]byte{source: legacy, target: before} {
+		actual, err := os.ReadFile(file)
+		if err != nil || !bytes.Equal(actual, expected) {
+			t.Fatal("migration changed source or target")
+		}
 	}
 }

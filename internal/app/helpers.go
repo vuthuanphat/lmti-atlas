@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/output"
-	"github.com/vuthuanphat6-byte/lmti-atlas/pkg/contract"
+	"github.com/vuthuanphat/lmti-atlas/internal/output"
+	"github.com/vuthuanphat/lmti-atlas/pkg/contract"
 )
 
 type InitResult struct {

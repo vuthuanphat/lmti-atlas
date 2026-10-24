@@ -8,21 +8,22 @@ leak private project knowledge into a prompt, log, package, or public repo.
 
 | Version | Support Status |
 |---|---|
-| `0.1.0-alpha.1` | Local-alpha security fixes on the default branch. |
+| `0.2.0-alpha.1` | Development candidate; security fixes tracked in this repository, runtime release pending. |
+| `0.1.0-alpha.1` | Historical public alpha; upgrade guidance accompanies the next release. |
 | Earlier versions | Not supported. |
 
 There are no stable long-term support branches yet.
 
 ## Reporting A Vulnerability
 
-If GitHub private vulnerability reporting is enabled, use it.
+Use GitHub **Private Vulnerability Reporting**:
+https://github.com/vuthuanphat/lmti-atlas/security/advisories/new
 
-If private reporting is not available, open a minimal public issue that says a
-security report exists. Do not include exploit details, tokens, private paths,
-customer data, raw memory, or logs with secrets. The maintainer should then
-provide a private contact path.
-
-TODO: Publish an official private security contact before broad public release.
+Private vulnerability reporting was enabled and verified through the GitHub API
+on 2026-10-23. Report vulnerabilities through the private channel above. Never
+include exploit details, tokens, private paths, customer data, raw memory or
+sensitive logs in public issues. If the private channel is unavailable, a public
+issue may request private contact using only a neutral sentence.
 
 ## Security Principles
 

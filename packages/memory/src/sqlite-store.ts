@@ -36,6 +36,8 @@ import {
   detectLibraryPrivacyFindings,
   filterLibraryMemoryForPrompt
 } from "./library-privacy";
+import { checkedMemoryFile, MAX_CONTEXT_MEMORY_BYTES, MAX_CONTEXT_MEMORY_RECORDS, requireCompleteMemoryScan } from "./read-boundary";
+import { checkedSqliteTarget, type CheckedMemoryPath } from "./storage-boundary";
 
 export const PROJECT_MEMORY_DB_FILE = "project-memory.sqlite";
 
@@ -349,22 +351,143 @@ const DEFAULT_SHORT_MEMORY_LIMIT = 8;
 const SHORT_MEMORY_PROMOTE_SUGGEST_THRESHOLD = 0.75;
 const SHORT_MEMORY_AUTO_PROMOTE_THRESHOLD = 0.9;
 
-export async function initProjectMemoryStorage(cwd = process.cwd()): Promise<ProjectMemoryStorageInitResult> {
-  const dbPath = await ensureProjectMemoryDbPath(cwd);
-  const db = await openProjectMemoryDatabase(dbPath);
+/** Owner-only projection for read-only context. Both tables share one snapshot.
+ * No schema initialization, expiry, audit, access or reinforcement writes. */
+export async function readProjectMemoryRecords(cwd: string, projectId: string): Promise<{ records: MemoryRecord[]; revision: string } | undefined> {
+  const dbPath = await checkedMemoryFile(cwd, PROJECT_MEMORY_DB_FILE, 128 * 1024 * 1024);
+  if (!dbPath) return undefined;
+  await checkedMemoryFile(cwd, `${PROJECT_MEMORY_DB_FILE}-wal`, 128 * 1024 * 1024);
+  await checkedMemoryFile(cwd, `${PROJECT_MEMORY_DB_FILE}-shm`, 16 * 1024 * 1024);
+  await checkedMemoryFile(cwd, `${PROJECT_MEMORY_DB_FILE}-journal`, 128 * 1024 * 1024);
+  const sqlite = await import("node:sqlite");
+  const db = new sqlite.DatabaseSync(dbPath, { readOnly: true });
   try {
-    applyProjectMemorySchema(db);
-    return { dbPath, schemaVersion: SCHEMA_VERSION };
-  } finally {
-    db.close();
-  }
+    db.exec("PRAGMA query_only = ON; BEGIN;");
+    const version = db.prepare("SELECT MAX(version) AS version FROM memory_migrations").get() as { version: number };
+    if (version.version !== SCHEMA_VERSION) throw new Error("MEMORY_SCHEMA_UNSUPPORTED");
+    const rows = db.prepare("SELECT * FROM memory_items WHERE status != 'deleted' ORDER BY id LIMIT ?").all(MAX_CONTEXT_MEMORY_RECORDS + 1) as unknown as ProjectMemoryRow[];
+    const shortRows = db.prepare("SELECT * FROM short_memory_notes WHERE status NOT IN ('deleted', 'promoted') ORDER BY id LIMIT ?").all(MAX_CONTEXT_MEMORY_RECORDS + 1) as unknown as ShortMemoryRow[];
+    requireCompleteMemoryScan([...rows, ...shortRows]);
+    if (Buffer.byteLength(JSON.stringify([rows, shortRows])) > MAX_CONTEXT_MEMORY_BYTES) throw new Error("MEMORY_READ_BUDGET_EXCEEDED");
+    const records: MemoryRecord[] = [];
+    const lessonRevisions: LessonCandidate[] = [];
+    for (const row of rows) {
+      if (!isLibraryPrivacyLevel(row.privacy_level) || !isProjectMemoryStatus(row.status) || !isLibraryZone(row.zone)) throw new Error("MEMORY_SOURCE_INVALID");
+      const item = rowToProjectMemoryItem(row);
+      const sourceRefs = item.source ? [item.source] : [];
+      const lesson = item.zone === "lesson" || item.sourceType === "lesson_candidate";
+      if (lesson) {
+        if (!item.source?.startsWith("lesson_candidate:")) continue;
+        const candidate = getLessonCandidateSync(db, item.source.slice("lesson_candidate:".length));
+        if (!candidate || candidate.approvalStatus !== "approved" || candidate.privacyStatus !== "pass") continue;
+        sourceRefs.push(...candidate.sourceRefs.map(ref => ref.ref));
+        lessonRevisions.push(candidate);
+      }
+      records.push({ id: item.id, scope: "long_term", kind: lesson ? "lesson" : item.zone === "deployment" ? "deploy_note" : "system_note", title: item.title, content: item.content, privacySafeSummary: item.summary,
+        projectId, sourceRefs, tags: item.tags, importance: item.importance, confidence: item.confidence >= 0.7 ? "high" : item.confidence >= 0.4 ? "medium" : "low",
+        sensitivity: item.privacyLevel === "private" ? "confidential" : item.privacyLevel === "do_not_prompt" ? "secret" : item.privacyLevel,
+        promptPolicy: item.privacyLevel === "secret" || item.privacyLevel === "do_not_prompt" ? "do_not_prompt" : item.privacyLevel === "public" ? "allow_raw" : "summarize_only",
+        createdAt: item.createdAt, updatedAt: item.updatedAt, expiresAt: item.expiresAt, status: item.status === "archived" || item.status === "superseded" ? item.status : "active", version: SCHEMA_VERSION });
+    }
+    for (const row of shortRows) {
+      if (!isLibraryPrivacyLevel(row.privacy_level) || !isShortMemoryStatus(row.status) || !isShortMemoryPriority(row.priority)) throw new Error("MEMORY_SOURCE_INVALID");
+      const note = rowToShortMemoryNote(row);
+      records.push({ id: note.id, scope: "short_term", kind: "task", title: note.title, content: note.content, privacySafeSummary: note.summary,
+        projectId, sourceRefs: note.source ? [note.source] : [], tags: note.tags, importance: note.importanceScore, confidence: "medium",
+        sensitivity: note.privacyLevel === "private" ? "confidential" : note.privacyLevel === "do_not_prompt" ? "secret" : note.privacyLevel,
+        promptPolicy: note.status === "blocked_by_privacy" || note.privacyLevel === "secret" || note.privacyLevel === "do_not_prompt" ? "do_not_prompt" : note.privacyLevel === "public" ? "allow_raw" : "summarize_only",
+        createdAt: note.createdAt, updatedAt: note.updatedAt, expiresAt: note.expiresAt, status: note.status === "expired" ? "archived" : "active", version: SCHEMA_VERSION });
+    }
+    return { records, revision: createHash("sha256").update(JSON.stringify([rows, shortRows, lessonRevisions])).digest("hex") };
+  } finally { db.close(); }
+}
+
+export async function initProjectMemoryStorage(cwd = process.cwd()): Promise<ProjectMemoryStorageInitResult> {
+  const { target, db } = await initializeProjectMemoryDatabase(cwd);
+  try { return { dbPath: target.filename, schemaVersion: SCHEMA_VERSION }; }
+  finally { db.close(); }
+}
+
+// Desktop reads must not initialize, migrate, expire, log or update access times.
+// Storage stays owned by this module; the desktop receives bounded policy-safe values.
+export async function readProjectMemorySnapshot(cwd: string, query = "") {
+  const dbPath = await checkedMemoryFile(cwd, PROJECT_MEMORY_DB_FILE, 128 * 1024 * 1024);
+  if (!dbPath) return { connected: false, memories: [], lessons: [], truncated: false };
+  await checkedMemoryFile(cwd, `${PROJECT_MEMORY_DB_FILE}-wal`, 128 * 1024 * 1024);
+  await checkedMemoryFile(cwd, `${PROJECT_MEMORY_DB_FILE}-shm`, 16 * 1024 * 1024);
+  await checkedMemoryFile(cwd, `${PROJECT_MEMORY_DB_FILE}-journal`, 128 * 1024 * 1024);
+  const sqlite = await import("node:sqlite");
+  const db = new sqlite.DatabaseSync(dbPath, { readOnly: true });
+  try {
+    db.exec("PRAGMA query_only = ON; BEGIN;");
+    const version = db.prepare("SELECT MAX(version) AS version FROM memory_migrations").get() as { version: number };
+    if (version.version !== SCHEMA_VERSION) throw new Error("MEMORY_SCHEMA_UNSUPPORTED");
+    const rows = queryProjectMemoryRows(db, query, { limit: 201, now: new Date() });
+    const memories: Array<{ id: string; title: string; summary: string; zone: string; privacy: string; updatedAt: string }> = [];
+    for (const row of rows) {
+      const item = rowToProjectMemoryItem(row);
+      if (!isLibraryPrivacyLevel(row.privacy_level) || !isProjectMemoryStatus(row.status)) continue;
+      if (item.zone === "lesson" || item.sourceType === "lesson_candidate") {
+        if (!item.source?.startsWith("lesson_candidate:")) continue;
+        const candidate = getLessonCandidateSync(db, item.source.slice("lesson_candidate:".length));
+        if (!candidate || candidate.approvalStatus !== "approved" || candidate.privacyStatus !== "pass") continue;
+      }
+      const gate = filterLibraryMemoryForPrompt(item, { privacyMode: "safe" });
+      if (!gate.allowed || !gate.item) continue;
+      memories.push({ id: item.id, title: redactText(item.title).slice(0, 240), summary: redactText(gate.item.summary).slice(0, 2000), zone: item.zone, privacy: item.privacyLevel, updatedAt: item.updatedAt });
+    }
+    const candidates = db.prepare("SELECT * FROM lesson_candidates WHERE privacy_status = 'pass' ORDER BY created_at DESC LIMIT 201").all() as unknown as LessonCandidateRow[];
+    const lessons = candidates.filter(row => ["pending", "approved", "rejected"].includes(row.approval_status)).map(rowToLessonCandidate).map(c => ({
+      id: c.id, title: redactText(c.title).slice(0, 240), summary: redactText(c.lesson).slice(0, 2000), status: c.approvalStatus,
+      fingerprint: createHash("sha256").update(JSON.stringify(c)).digest("hex"),
+      evidence: c.evidence.map(e => `${e.type}: ${redactText(e.summary)}`).slice(0, 12),
+      confidence: c.confidence, verifyRequired: c.verifyRequired, lastVerifiedAt: c.lastVerifiedAt,
+      canApprove: c.approvalStatus === "pending" && c.confidence >= 0.2 && c.evidence.some(e => e.type !== "agent_summary" && e.type !== "privacy_check")
+    }));
+    return { connected: true, memories: memories.slice(0, 200), lessons: lessons.slice(0, 200), truncated: rows.length > 200 || candidates.length > 200 };
+  } finally { db.close(); }
+}
+
+export async function reviewDesktopLesson(cwd: string, id: string, fingerprint: string, decision: "approve" | "reject") {
+  // An existing supported store is required. No schema creation or migration.
+  if (!(await readProjectMemorySnapshot(cwd)).connected) throw new Error("MEMORY_NOT_CONNECTED");
+  const target = await checkedSqliteTarget(cwd, PROJECT_MEMORY_DB_FILE, false);
+  const db = await openProjectMemoryDatabase(target);
+  try {
+    db.exec("PRAGMA busy_timeout = 2000; BEGIN IMMEDIATE;");
+    const schema = db.prepare("SELECT MAX(version) AS version FROM memory_migrations").get() as { version: number };
+    if (schema.version !== SCHEMA_VERSION) throw new Error("MEMORY_SCHEMA_UNSUPPORTED");
+    const raw = db.prepare("SELECT approval_status, privacy_status FROM lesson_candidates WHERE id = ?").get(id) as { approval_status: string; privacy_status: string } | undefined;
+    const candidate = getLessonCandidateSync(db, id);
+    if (!raw || raw.approval_status !== "pending" || raw.privacy_status !== "pass" || !candidate || candidate.approvalStatus !== "pending" || candidate.privacyStatus !== "pass" || createHash("sha256").update(JSON.stringify(candidate)).digest("hex") !== fingerprint) throw new Error("LESSON_STALE_OR_DENIED");
+    const now = new Date().toISOString();
+    if (decision === "approve") {
+      assertCandidateCanBeApproved(candidate);
+      if (!candidate.evidence.some(e => e.type !== "agent_summary" && e.type !== "privacy_check")) throw new Error("LESSON_EVIDENCE_REQUIRED");
+      const content = lessonCandidateToMemoryContent(candidate);
+      const classification = classifyLibraryMemory({ title: candidate.title, content });
+      const privacy = applyLibraryWritePrivacyGate({ title: candidate.title, content, summary: classification.summary, privacyLevel: "internal" });
+      if (privacy.rawContentBlocked || privacy.privacyLevel === "secret" || privacy.privacyLevel === "do_not_prompt" || runEgressSecretScan(content).blocked) throw new Error("LESSON_PRIVACY_DENIED");
+      const item: ProjectMemoryItem = {
+        id: randomUUID(), zone: "lesson", title: privacy.title, content: privacy.content, summary: privacy.summary,
+        contentHash: hashMemoryContent(privacy.title, privacy.summary, privacy.content), source: `lesson_candidate:${id}`, sourceType: "lesson_candidate",
+        tags: ["lesson", "approved", candidate.lessonType], privacyLevel: privacy.privacyLevel, confidence: candidate.confidence, importance: 0.75,
+        createdAt: now, updatedAt: now, status: "active", reasons: ["Explicit desktop evidence/privacy review"]
+      };
+      insertProjectMemoryItem(db, item);
+      appendProjectMemoryEvent(db, item.id, "lesson_candidate.approved", { candidateId: id, reviewed: true });
+    } else appendProjectMemoryEvent(db, undefined, "lesson_candidate.rejected", { candidateId: id, reviewed: true });
+    db.prepare("UPDATE lesson_candidates SET approval_status = ?, updated_at = ? WHERE id = ?").run(decision === "approve" ? "approved" : "rejected", now, id);
+    db.exec("COMMIT;");
+    return { id, status: decision === "approve" ? "approved" : "rejected" };
+  } catch (error) { try { db.exec("ROLLBACK;"); } catch {} throw error; }
+  finally { db.close(); }
 }
 
 export async function addProjectMemory(input: AddProjectMemoryInput, options: { cwd?: string; now?: Date } = {}): Promise<ProjectMemoryItem> {
   const cwd = options.cwd ?? process.cwd();
   const now = (options.now ?? new Date()).toISOString();
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     const classification = classifyLibraryMemory({
       title: input.title,
@@ -428,8 +551,7 @@ export async function updateProjectMemory(
 ): Promise<ProjectMemoryItem> {
   const cwd = options.cwd ?? process.cwd();
   const now = (options.now ?? new Date()).toISOString();
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     const existing = getProjectMemoryItemSync(db, id);
     if (!existing) {
@@ -485,8 +607,7 @@ export async function updateProjectMemory(
 
 export async function deleteProjectMemory(id: string, options: { cwd?: string } = {}): Promise<boolean> {
   const cwd = options.cwd ?? process.cwd();
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     const existing = getProjectMemoryItemSync(db, id);
     if (!existing) {
@@ -505,8 +626,7 @@ export async function createShortMemoryNote(input: CreateShortMemoryNoteInput, o
   const now = options.now ?? new Date();
   const priority = input.priority ?? "medium";
   await expireShortMemoryNotes({ cwd, now });
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     const classification = classifyLibraryMemory({
       title: input.title,
@@ -593,15 +713,15 @@ export async function retrieveShortMemoryForTask(
   const cwd = options.cwd ?? process.cwd();
   const now = options.now ?? new Date();
   await expireShortMemoryNotes({ cwd, now });
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     const rows = queryShortMemoryRows(db, task, {
       tags: options.tags,
       includeExpired: options.includeExpired,
-      limit: Math.max(options.limit ?? DEFAULT_SHORT_MEMORY_LIMIT, 1) * 3,
+      limit: MAX_CONTEXT_MEMORY_RECORDS + 1,
       now
     });
+    requireCompleteMemoryScan(rows);
     const results: Array<ShortMemoryRetrievalNote & { rawScore: number }> = [];
     let filteredOut = 0;
 
@@ -657,7 +777,7 @@ export async function retrieveShortMemoryForTask(
     }
 
     return {
-      notes: results.sort((left, right) => right.rawScore - left.rawScore).slice(0, options.limit ?? DEFAULT_SHORT_MEMORY_LIMIT).map(({ rawScore: _rawScore, ...note }) => note),
+      notes: results.sort((left, right) => right.rawScore - left.rawScore || left.id.localeCompare(right.id)).slice(0, options.limit ?? DEFAULT_SHORT_MEMORY_LIMIT).map(({ rawScore: _rawScore, ...note }) => note),
       filteredOut
     };
   } finally {
@@ -671,8 +791,7 @@ export async function expireShortMemoryNotes(
   const options = nowOrOptions instanceof Date ? { now: nowOrOptions } : nowOrOptions;
   const cwd = options.cwd ?? process.cwd();
   const now = options.now ?? new Date();
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     const rows = db.prepare("SELECT * FROM short_memory_notes WHERE status = 'active' AND expires_at <= ?").all(now.toISOString()) as unknown as ShortMemoryRow[];
     let expired = 0;
@@ -699,8 +818,7 @@ export async function cleanupShortMemoryNotes(
   const now = options.now ?? new Date();
   const deleteExpiredOlderThanHours = options.deleteExpiredOlderThanHours ?? 24;
   await expireShortMemoryNotes({ cwd, now });
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     const cutoff = new Date(now.getTime() - deleteExpiredOlderThanHours * 3_600_000).toISOString();
     const rows = db.prepare("SELECT * FROM short_memory_notes WHERE status = 'expired' AND expires_at <= ?").all(cutoff) as unknown as ShortMemoryRow[];
@@ -739,8 +857,7 @@ export async function evaluateShortMemoryForPromotion(
   options: { cwd?: string; now?: Date } = {}
 ): Promise<ShortMemoryPromotionEvaluation> {
   const cwd = options.cwd ?? process.cwd();
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     const note = getShortMemoryNoteSync(db, noteId);
     if (!note) {
@@ -795,11 +912,11 @@ export async function promoteShortMemoryToLongMemory(
   const cwd = options.cwd ?? process.cwd();
   const now = options.now ?? new Date();
   const evaluation = await evaluateShortMemoryForPromotion(input.noteId, { cwd, now });
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
+  const { target: databaseTarget, db: initialDb } = await initializeProjectMemoryDatabase(cwd);
   let refreshed: ShortMemoryNote;
 
   {
-    const db = await openProjectMemoryDatabase(dbPath);
+    const db = initialDb;
     try {
       const note = getShortMemoryNoteSync(db, input.noteId);
       if (!note) {
@@ -832,7 +949,7 @@ export async function promoteShortMemoryToLongMemory(
     { cwd, now }
   );
 
-  const db = await openProjectMemoryDatabase(dbPath);
+  const db = await openProjectMemoryDatabase(databaseTarget);
   try {
     db.prepare("UPDATE short_memory_notes SET status = 'promoted', promoted_to_long_memory_id = ?, updated_at = ? WHERE id = ?").run(
       longMemory.id,
@@ -879,19 +996,27 @@ export async function searchProjectMemory(
 ): Promise<ProjectMemorySearchResult[]> {
   const cwd = options.cwd ?? process.cwd();
   const now = options.now ?? new Date();
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     const zones = options.zones ? uniqueZones(options.zones) : undefined;
     const rows = queryProjectMemoryRows(db, query, {
       zones,
       includeArchived: options.includeArchived,
-      limit: Math.max(options.limit ?? DEFAULT_RETRIEVE_LIMIT, 1) * 3,
+      limit: MAX_CONTEXT_MEMORY_RECORDS + 1,
       now
     });
+    requireCompleteMemoryScan(rows);
     const results: ProjectMemorySearchResult[] = [];
     for (const row of rows) {
+      if (!isLibraryPrivacyLevel(row.privacy_level) || !isProjectMemoryStatus(row.status)) throw new Error("MEMORY_SOURCE_INVALID");
       const item = rowToProjectMemoryItem(row);
+      // Compatibility search still permits explicitly entered manual lesson
+      // notes; a review-backed candidate may never bypass a later rejection.
+      if (item.sourceType === "lesson_candidate" || item.source?.startsWith("lesson_candidate:")) {
+        if (!item.source?.startsWith("lesson_candidate:")) continue;
+        const candidate = getLessonCandidateSync(db, item.source.slice("lesson_candidate:".length));
+        if (!candidate || candidate.approvalStatus !== "approved" || candidate.privacyStatus !== "pass") continue;
+      }
       const promptGate = filterLibraryMemoryForPrompt(item, { privacyMode: options.privacyMode });
       if (!promptGate.allowed || !promptGate.item) {
         appendProjectMemoryEvent(db, item.id, "blocked_by_privacy_gate", {
@@ -924,7 +1049,7 @@ export async function searchProjectMemory(
       });
     }
 
-    return results.sort((left, right) => right.score - left.score).slice(0, options.limit ?? DEFAULT_RETRIEVE_LIMIT);
+    return results.sort((left, right) => right.score - left.score || left.item.id.localeCompare(right.item.id)).slice(0, options.limit ?? DEFAULT_RETRIEVE_LIMIT);
   } finally {
     db.close();
   }
@@ -950,9 +1075,8 @@ async function storeTaskObservation(
 ): Promise<TaskObservation> {
   const cwd = options.cwd ?? process.cwd();
   const now = (options.now ?? new Date()).toISOString();
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
   const observation = sanitizeTaskObservation(input, now);
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     db.prepare(`
       INSERT OR REPLACE INTO task_observations (
@@ -1025,8 +1149,7 @@ export async function proposeLessonCandidate(
     updatedAt: now
   };
 
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     insertLessonCandidateSync(db, candidate);
     appendProjectMemoryEvent(db, undefined, "lesson_candidate.created", {
@@ -1047,8 +1170,7 @@ export async function listLessonCandidates(
   options: LessonCandidateListOptions & { cwd?: string } = {}
 ): Promise<LessonCandidate[]> {
   const cwd = options.cwd ?? process.cwd();
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     const where: string[] = [];
     const params: SqliteValue[] = [];
@@ -1078,8 +1200,7 @@ export async function getLessonCandidate(
   options: { cwd?: string } = {}
 ): Promise<LessonCandidate | undefined> {
   const cwd = options.cwd ?? process.cwd();
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     return getLessonCandidateSync(db, id);
   } finally {
@@ -1093,8 +1214,7 @@ export async function approveLessonCandidate(
 ): Promise<{ candidate: LessonCandidate; memory: ProjectMemoryItem }> {
   const cwd = options.cwd ?? process.cwd();
   const now = (options.now ?? new Date()).toISOString();
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { target: databaseTarget, db } = await initializeProjectMemoryDatabase(cwd);
   try {
     const candidate = getLessonCandidateSync(db, id);
     if (!candidate) {
@@ -1128,7 +1248,7 @@ export async function approveLessonCandidate(
     { cwd, now: options.now }
   );
 
-  const updateDb = await openProjectMemoryDatabase(dbPath);
+  const updateDb = await openProjectMemoryDatabase(databaseTarget);
   try {
     updateDb.prepare(`
       UPDATE lesson_candidates
@@ -1157,8 +1277,7 @@ export async function rejectLessonCandidate(
 ): Promise<LessonCandidate> {
   const cwd = options.cwd ?? process.cwd();
   const now = (options.now ?? new Date()).toISOString();
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     const candidate = getLessonCandidateSync(db, id);
     if (!candidate) {
@@ -1196,8 +1315,7 @@ export async function getLessonCandidateReviewSummary(options: { cwd?: string } 
 
 export async function getProjectMemoryStats(options: { cwd?: string } = {}): Promise<ProjectMemoryStats> {
   const cwd = options.cwd ?? process.cwd();
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     const rows = db.prepare("SELECT zone, privacy_level, status, COUNT(*) AS total FROM memory_items GROUP BY zone, privacy_level, status").all() as Array<{
       zone: string;
@@ -1227,8 +1345,7 @@ export async function getProjectMemoryStats(options: { cwd?: string } = {}): Pro
 
 export async function checkProjectMemoryPrivacy(options: { cwd?: string } = {}): Promise<ProjectMemoryPrivacyFinding[]> {
   const cwd = options.cwd ?? process.cwd();
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+  const { db } = await initializeProjectMemoryDatabase(cwd);
   try {
     const rows = db.prepare("SELECT * FROM memory_items WHERE status != 'deleted'").all() as unknown as ProjectMemoryRow[];
     const findings: ProjectMemoryPrivacyFinding[] = [];
@@ -1252,259 +1369,310 @@ export async function checkProjectMemoryPrivacy(options: { cwd?: string } = {}):
   }
 }
 
-export async function migrateJsonMemoryToProjectMemory(options: { cwd?: string; now?: Date } = {}): Promise<{ imported: number; skipped: number }> {
+export async function migrateJsonMemoryToProjectMemory(
+  options: { cwd?: string; now?: Date; dryRun?: boolean } = {}
+): Promise<{ imported: number; skipped: number; blocked: number; dryRun: boolean; warnings: string[] }> {
   const cwd = options.cwd ?? process.cwd();
-  await initProjectMemoryStorage(cwd);
+  // The SQLite model cannot losslessly represent legacy project scope, prompt
+  // policy, provenance, lifecycle and lesson review. Inventory only until the
+  // dedicated migration contract is implemented; never silently downgrade data.
   const files = [
     path.resolve(cwd, ".lmti", "memory", "long-term.json"),
-    path.resolve(cwd, ".lmti", "memory", "lessons.json")
+    path.resolve(cwd, ".lmti", "memory", "lessons.json"),
+    path.resolve(cwd, ".lmti", "memory", "short-term.json")
   ];
-  let imported = 0;
-  let skipped = 0;
+  let blocked = 0;
 
   for (const file of files) {
-    let records: MemoryRecord[] = [];
+    let raw: string;
     try {
-      records = JSON.parse(await fs.readFile(file, "utf8")) as MemoryRecord[];
-    } catch {
-      continue;
-    }
-
-    for (const record of records) {
-      const source = `legacy-json:${record.id}`;
-      if (await projectMemorySourceExists(cwd, source)) {
-        skipped += 1;
-        continue;
+      const checked = await checkedMemoryFile(cwd, path.basename(file), 16 * 1024 * 1024);
+      if (!checked) continue;
+      const handle = await fs.open(checked, "r");
+      try {
+        const maxBytes = 16 * 1024 * 1024;
+        if ((await handle.stat()).size > maxBytes) {
+          throw new Error("LEGACY_MEMORY_INVALID: input exceeds the migration inventory limit.");
+        }
+        // Bound allocation/read even if another process grows the file after stat.
+        const bytes = Buffer.alloc(maxBytes + 1);
+        let length = 0;
+        while (length < bytes.length) {
+          const result = await handle.read(bytes, length, bytes.length - length, null);
+          if (result.bytesRead === 0) break;
+          length += result.bytesRead;
+        }
+        if (length > maxBytes) {
+          throw new Error("LEGACY_MEMORY_INVALID: input exceeds the migration inventory limit.");
+        }
+        raw = bytes.subarray(0, length).toString("utf8");
+      } finally {
+        await handle.close();
       }
-      await addProjectMemory(
-        {
-          title: record.title,
-          content: record.privacySafeSummary ?? record.content,
-          source,
-          sourceType: "legacy_json",
-          tags: record.tags,
-          confidence: confidenceToNumber(record.confidence),
-          importance: record.importance,
-          expiresAt: record.expiresAt,
-          status: record.status === "archived" || record.status === "superseded" ? record.status : "active"
-        },
-        { cwd, now: options.now }
-      );
-      imported += 1;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+      if (error instanceof Error && error.message.startsWith("LEGACY_MEMORY_INVALID:")) throw error;
+      throw new Error("LEGACY_MEMORY_INVALID: cannot read migration input.");
     }
+    let records: unknown;
+    try {
+      records = JSON.parse(raw);
+    } catch {
+      throw new Error("LEGACY_MEMORY_INVALID: migration input must be a JSON array.");
+    }
+    if (!Array.isArray(records) || records.length > 10_000 ||
+        records.some((record) => record === null || typeof record !== "object" || Array.isArray(record))) {
+      throw new Error("LEGACY_MEMORY_INVALID: migration input must be a bounded array of records.");
+    }
+    blocked += records.length;
   }
 
-  return { imported, skipped };
+  if (blocked > 0 && !options.dryRun) {
+    throw new Error("LEGACY_MEMORY_MIGRATION_BLOCKED: lossless policy, provenance and lifecycle mapping is required. Use --dry-run for inventory; keep the original stores.");
+  }
+  return {
+    imported: 0,
+    skipped: 0,
+    blocked,
+    dryRun: Boolean(options.dryRun),
+    warnings: blocked > 0 ? ["Legacy import writes are blocked pending a lossless reviewed migration."] : []
+  };
+}
+
+function projectMemorySchemaVersion(db: DatabaseSync): number {
+  const migrations = db.prepare("SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = 'memory_migrations'").get();
+  if (!migrations) return 0;
+  const row = db.prepare("SELECT MAX(version) AS version FROM memory_migrations").get() as { version: unknown };
+  const version = row.version ?? 0;
+  if (typeof version !== "number" || !Number.isInteger(version) || version < 0 || version > SCHEMA_VERSION) {
+    throw new Error("MEMORY_SCHEMA_UNSUPPORTED");
+  }
+  return version;
 }
 
 function applyProjectMemorySchema(db: DatabaseSync): void {
-  db.exec("PRAGMA foreign_keys = ON;");
+  const currentVersion = projectMemorySchemaVersion(db);
   db.exec("PRAGMA journal_mode = WAL;");
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS memory_migrations (
-      version INTEGER PRIMARY KEY,
-      name TEXT NOT NULL,
-      applied_at TEXT NOT NULL
+  if (currentVersion === SCHEMA_VERSION) return;
+
+  db.exec("BEGIN IMMEDIATE;");
+  try {
+    // A different writer may have completed the migration while we waited.
+    const version = projectMemorySchemaVersion(db);
+    if (version === SCHEMA_VERSION) {
+      db.exec("COMMIT;");
+      return;
+    }
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS memory_migrations (
+        version INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        applied_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS memory_items (
+        id TEXT PRIMARY KEY,
+        zone TEXT NOT NULL CHECK (zone IN ('architecture','codebase','workflow','deployment','security','decision','lesson','incident','customer','business','prompting','unknown')),
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        content_hash TEXT NOT NULL DEFAULT '',
+        source TEXT,
+        source_type TEXT,
+        tags TEXT NOT NULL DEFAULT '[]',
+        privacy_level TEXT NOT NULL CHECK (privacy_level IN ('public','internal','private','secret','do_not_prompt')),
+        confidence REAL NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
+        importance REAL NOT NULL CHECK (importance >= 0 AND importance <= 1),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        last_accessed_at TEXT,
+        expires_at TEXT,
+        status TEXT NOT NULL CHECK (status IN ('active','archived','superseded','deleted')),
+        reasons TEXT NOT NULL DEFAULT '[]'
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_memory_items_zone ON memory_items(zone);
+      CREATE INDEX IF NOT EXISTS idx_memory_items_privacy ON memory_items(privacy_level);
+      CREATE INDEX IF NOT EXISTS idx_memory_items_status ON memory_items(status);
+      CREATE INDEX IF NOT EXISTS idx_memory_items_source ON memory_items(source);
+
+      CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
+        title,
+        summary,
+        content,
+        tags,
+        content='memory_items',
+        content_rowid='rowid'
+      );
+
+      CREATE TRIGGER IF NOT EXISTS memory_items_ai AFTER INSERT ON memory_items BEGIN
+        INSERT INTO memory_fts(rowid, title, summary, content, tags)
+        VALUES (new.rowid, new.title, new.summary, new.content, new.tags);
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS memory_items_ad AFTER DELETE ON memory_items BEGIN
+        INSERT INTO memory_fts(memory_fts, rowid, title, summary, content, tags)
+        VALUES ('delete', old.rowid, old.title, old.summary, old.content, old.tags);
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS memory_items_au AFTER UPDATE ON memory_items BEGIN
+        INSERT INTO memory_fts(memory_fts, rowid, title, summary, content, tags)
+        VALUES ('delete', old.rowid, old.title, old.summary, old.content, old.tags);
+        INSERT INTO memory_fts(rowid, title, summary, content, tags)
+        VALUES (new.rowid, new.title, new.summary, new.content, new.tags);
+      END;
+
+      CREATE TABLE IF NOT EXISTS memory_links (
+        id TEXT PRIMARY KEY,
+        from_memory_id TEXT NOT NULL,
+        to_memory_id TEXT NOT NULL,
+        relation_type TEXT NOT NULL CHECK (relation_type IN ('related_to','caused_by','fixes','supersedes','depends_on','contradicts')),
+        created_at TEXT NOT NULL,
+        UNIQUE(from_memory_id, to_memory_id, relation_type),
+        FOREIGN KEY (from_memory_id) REFERENCES memory_items(id) ON DELETE CASCADE,
+        FOREIGN KEY (to_memory_id) REFERENCES memory_items(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS memory_events (
+        id TEXT PRIMARY KEY,
+        memory_id TEXT,
+        event_type TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (memory_id) REFERENCES memory_items(id) ON DELETE SET NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS short_memory_notes (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        summary TEXT,
+        content_hash TEXT NOT NULL DEFAULT '',
+        source TEXT,
+        source_type TEXT,
+        tags TEXT NOT NULL DEFAULT '[]',
+        priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low','medium','high','critical')),
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','expired','deleted','promoted','blocked_by_privacy')),
+        privacy_level TEXT NOT NULL DEFAULT 'internal' CHECK (privacy_level IN ('public','internal','private','secret','do_not_prompt')),
+        importance_score REAL NOT NULL DEFAULT 0 CHECK (importance_score >= 0 AND importance_score <= 1),
+        promote_score REAL NOT NULL DEFAULT 0 CHECK (promote_score >= 0 AND promote_score <= 1),
+        promoted_to_long_memory_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        last_accessed_at TEXT,
+        access_count INTEGER NOT NULL DEFAULT 0,
+        reasons TEXT NOT NULL DEFAULT '[]',
+        FOREIGN KEY (promoted_to_long_memory_id) REFERENCES memory_items(id) ON DELETE SET NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_short_memory_status ON short_memory_notes(status);
+      CREATE INDEX IF NOT EXISTS idx_short_memory_priority ON short_memory_notes(priority);
+      CREATE INDEX IF NOT EXISTS idx_short_memory_expires ON short_memory_notes(expires_at);
+      CREATE INDEX IF NOT EXISTS idx_short_memory_promote_score ON short_memory_notes(promote_score);
+
+      CREATE VIRTUAL TABLE IF NOT EXISTS short_memory_notes_fts USING fts5(
+        title,
+        summary,
+        content,
+        tags,
+        content='short_memory_notes',
+        content_rowid='rowid'
+      );
+
+      CREATE TRIGGER IF NOT EXISTS short_memory_notes_ai AFTER INSERT ON short_memory_notes BEGIN
+        INSERT INTO short_memory_notes_fts(rowid, title, summary, content, tags)
+        VALUES (new.rowid, new.title, COALESCE(new.summary, ''), new.content, new.tags);
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS short_memory_notes_ad AFTER DELETE ON short_memory_notes BEGIN
+        INSERT INTO short_memory_notes_fts(short_memory_notes_fts, rowid, title, summary, content, tags)
+        VALUES ('delete', old.rowid, old.title, COALESCE(old.summary, ''), old.content, old.tags);
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS short_memory_notes_au AFTER UPDATE ON short_memory_notes BEGIN
+        INSERT INTO short_memory_notes_fts(short_memory_notes_fts, rowid, title, summary, content, tags)
+        VALUES ('delete', old.rowid, old.title, COALESCE(old.summary, ''), old.content, old.tags);
+        INSERT INTO short_memory_notes_fts(rowid, title, summary, content, tags)
+        VALUES (new.rowid, new.title, COALESCE(new.summary, ''), new.content, new.tags);
+      END;
+
+      CREATE TABLE IF NOT EXISTS short_memory_events (
+        id TEXT PRIMARY KEY,
+        note_id TEXT,
+        event_type TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (note_id) REFERENCES short_memory_notes(id) ON DELETE SET NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS task_observations (
+        id TEXT PRIMARY KEY,
+        task_title TEXT NOT NULL,
+        task_summary TEXT,
+        agent TEXT,
+        files_touched TEXT NOT NULL DEFAULT '[]',
+        commands_run TEXT NOT NULL DEFAULT '[]',
+        tests TEXT NOT NULL DEFAULT '[]',
+        errors TEXT NOT NULL DEFAULT '[]',
+        decisions TEXT NOT NULL DEFAULT '[]',
+        outcome TEXT NOT NULL CHECK (outcome IN ('pass','fail','partial','unknown')),
+        privacy_scan_status TEXT NOT NULL CHECK (privacy_scan_status IN ('pass','warning','blocked')),
+        source_refs TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS lesson_candidates (
+        id TEXT PRIMARY KEY,
+        task_id TEXT NOT NULL,
+        lesson_type TEXT NOT NULL CHECK (lesson_type IN ('bug_fix','architecture','security','testing','deployment','workflow','permission','data_model','cli','other')),
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        lesson TEXT NOT NULL,
+        applies_to TEXT NOT NULL DEFAULT '[]',
+        source_refs TEXT NOT NULL DEFAULT '[]',
+        evidence TEXT NOT NULL DEFAULT '[]',
+        confidence REAL NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
+        privacy_status TEXT NOT NULL CHECK (privacy_status IN ('pass','warning','blocked')),
+        approval_status TEXT NOT NULL CHECK (approval_status IN ('pending','approved','rejected','needs_review')),
+        verify_required INTEGER NOT NULL DEFAULT 1,
+        suggested_verification TEXT NOT NULL DEFAULT '[]',
+        last_verified_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (task_id) REFERENCES task_observations(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_lesson_candidates_approval ON lesson_candidates(approval_status);
+      CREATE INDEX IF NOT EXISTS idx_lesson_candidates_privacy ON lesson_candidates(privacy_status);
+      CREATE INDEX IF NOT EXISTS idx_lesson_candidates_task ON lesson_candidates(task_id);
+    `);
+    db.prepare("INSERT OR IGNORE INTO memory_migrations(version, name, applied_at) VALUES (?, ?, ?)").run(
+      1,
+      "project_operating_memory_sqlite_fts5",
+      new Date().toISOString()
     );
-
-    CREATE TABLE IF NOT EXISTS memory_items (
-      id TEXT PRIMARY KEY,
-      zone TEXT NOT NULL CHECK (zone IN ('architecture','codebase','workflow','deployment','security','decision','lesson','incident','customer','business','prompting','unknown')),
-      title TEXT NOT NULL,
-      content TEXT NOT NULL,
-      summary TEXT NOT NULL,
-      content_hash TEXT NOT NULL DEFAULT '',
-      source TEXT,
-      source_type TEXT,
-      tags TEXT NOT NULL DEFAULT '[]',
-      privacy_level TEXT NOT NULL CHECK (privacy_level IN ('public','internal','private','secret','do_not_prompt')),
-      confidence REAL NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
-      importance REAL NOT NULL CHECK (importance >= 0 AND importance <= 1),
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      last_accessed_at TEXT,
-      expires_at TEXT,
-      status TEXT NOT NULL CHECK (status IN ('active','archived','superseded','deleted')),
-      reasons TEXT NOT NULL DEFAULT '[]'
+    db.prepare("INSERT OR IGNORE INTO memory_migrations(version, name, applied_at) VALUES (?, ?, ?)").run(
+      2,
+      "short_memory_notes_sqlite_fts5",
+      new Date().toISOString()
     );
-
-    CREATE INDEX IF NOT EXISTS idx_memory_items_zone ON memory_items(zone);
-    CREATE INDEX IF NOT EXISTS idx_memory_items_privacy ON memory_items(privacy_level);
-    CREATE INDEX IF NOT EXISTS idx_memory_items_status ON memory_items(status);
-    CREATE INDEX IF NOT EXISTS idx_memory_items_source ON memory_items(source);
-
-    CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
-      title,
-      summary,
-      content,
-      tags,
-      content='memory_items',
-      content_rowid='rowid'
+    if (version < 3) applyContentHashMigration(db);
+    db.prepare("INSERT OR IGNORE INTO memory_migrations(version, name, applied_at) VALUES (?, ?, ?)").run(
+      3,
+      "memory_content_hashes",
+      new Date().toISOString()
     );
-
-    CREATE TRIGGER IF NOT EXISTS memory_items_ai AFTER INSERT ON memory_items BEGIN
-      INSERT INTO memory_fts(rowid, title, summary, content, tags)
-      VALUES (new.rowid, new.title, new.summary, new.content, new.tags);
-    END;
-
-    CREATE TRIGGER IF NOT EXISTS memory_items_ad AFTER DELETE ON memory_items BEGIN
-      INSERT INTO memory_fts(memory_fts, rowid, title, summary, content, tags)
-      VALUES ('delete', old.rowid, old.title, old.summary, old.content, old.tags);
-    END;
-
-    CREATE TRIGGER IF NOT EXISTS memory_items_au AFTER UPDATE ON memory_items BEGIN
-      INSERT INTO memory_fts(memory_fts, rowid, title, summary, content, tags)
-      VALUES ('delete', old.rowid, old.title, old.summary, old.content, old.tags);
-      INSERT INTO memory_fts(rowid, title, summary, content, tags)
-      VALUES (new.rowid, new.title, new.summary, new.content, new.tags);
-    END;
-
-    CREATE TABLE IF NOT EXISTS memory_links (
-      id TEXT PRIMARY KEY,
-      from_memory_id TEXT NOT NULL,
-      to_memory_id TEXT NOT NULL,
-      relation_type TEXT NOT NULL CHECK (relation_type IN ('related_to','caused_by','fixes','supersedes','depends_on','contradicts')),
-      created_at TEXT NOT NULL,
-      UNIQUE(from_memory_id, to_memory_id, relation_type),
-      FOREIGN KEY (from_memory_id) REFERENCES memory_items(id) ON DELETE CASCADE,
-      FOREIGN KEY (to_memory_id) REFERENCES memory_items(id) ON DELETE CASCADE
+    db.prepare("INSERT OR IGNORE INTO memory_migrations(version, name, applied_at) VALUES (?, ?, ?)").run(
+      4,
+      "lesson_proposal_pipeline",
+      new Date().toISOString()
     );
-
-    CREATE TABLE IF NOT EXISTS memory_events (
-      id TEXT PRIMARY KEY,
-      memory_id TEXT,
-      event_type TEXT NOT NULL,
-      payload TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (memory_id) REFERENCES memory_items(id) ON DELETE SET NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS short_memory_notes (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      content TEXT NOT NULL,
-      summary TEXT,
-      content_hash TEXT NOT NULL DEFAULT '',
-      source TEXT,
-      source_type TEXT,
-      tags TEXT NOT NULL DEFAULT '[]',
-      priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low','medium','high','critical')),
-      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','expired','deleted','promoted','blocked_by_privacy')),
-      privacy_level TEXT NOT NULL DEFAULT 'internal' CHECK (privacy_level IN ('public','internal','private','secret','do_not_prompt')),
-      importance_score REAL NOT NULL DEFAULT 0 CHECK (importance_score >= 0 AND importance_score <= 1),
-      promote_score REAL NOT NULL DEFAULT 0 CHECK (promote_score >= 0 AND promote_score <= 1),
-      promoted_to_long_memory_id TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      expires_at TEXT NOT NULL,
-      last_accessed_at TEXT,
-      access_count INTEGER NOT NULL DEFAULT 0,
-      reasons TEXT NOT NULL DEFAULT '[]',
-      FOREIGN KEY (promoted_to_long_memory_id) REFERENCES memory_items(id) ON DELETE SET NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_short_memory_status ON short_memory_notes(status);
-    CREATE INDEX IF NOT EXISTS idx_short_memory_priority ON short_memory_notes(priority);
-    CREATE INDEX IF NOT EXISTS idx_short_memory_expires ON short_memory_notes(expires_at);
-    CREATE INDEX IF NOT EXISTS idx_short_memory_promote_score ON short_memory_notes(promote_score);
-
-    CREATE VIRTUAL TABLE IF NOT EXISTS short_memory_notes_fts USING fts5(
-      title,
-      summary,
-      content,
-      tags,
-      content='short_memory_notes',
-      content_rowid='rowid'
-    );
-
-    CREATE TRIGGER IF NOT EXISTS short_memory_notes_ai AFTER INSERT ON short_memory_notes BEGIN
-      INSERT INTO short_memory_notes_fts(rowid, title, summary, content, tags)
-      VALUES (new.rowid, new.title, COALESCE(new.summary, ''), new.content, new.tags);
-    END;
-
-    CREATE TRIGGER IF NOT EXISTS short_memory_notes_ad AFTER DELETE ON short_memory_notes BEGIN
-      INSERT INTO short_memory_notes_fts(short_memory_notes_fts, rowid, title, summary, content, tags)
-      VALUES ('delete', old.rowid, old.title, COALESCE(old.summary, ''), old.content, old.tags);
-    END;
-
-    CREATE TRIGGER IF NOT EXISTS short_memory_notes_au AFTER UPDATE ON short_memory_notes BEGIN
-      INSERT INTO short_memory_notes_fts(short_memory_notes_fts, rowid, title, summary, content, tags)
-      VALUES ('delete', old.rowid, old.title, COALESCE(old.summary, ''), old.content, old.tags);
-      INSERT INTO short_memory_notes_fts(rowid, title, summary, content, tags)
-      VALUES (new.rowid, new.title, COALESCE(new.summary, ''), new.content, new.tags);
-    END;
-
-    CREATE TABLE IF NOT EXISTS short_memory_events (
-      id TEXT PRIMARY KEY,
-      note_id TEXT,
-      event_type TEXT NOT NULL,
-      payload TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (note_id) REFERENCES short_memory_notes(id) ON DELETE SET NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS task_observations (
-      id TEXT PRIMARY KEY,
-      task_title TEXT NOT NULL,
-      task_summary TEXT,
-      agent TEXT,
-      files_touched TEXT NOT NULL DEFAULT '[]',
-      commands_run TEXT NOT NULL DEFAULT '[]',
-      tests TEXT NOT NULL DEFAULT '[]',
-      errors TEXT NOT NULL DEFAULT '[]',
-      decisions TEXT NOT NULL DEFAULT '[]',
-      outcome TEXT NOT NULL CHECK (outcome IN ('pass','fail','partial','unknown')),
-      privacy_scan_status TEXT NOT NULL CHECK (privacy_scan_status IN ('pass','warning','blocked')),
-      source_refs TEXT NOT NULL DEFAULT '[]',
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS lesson_candidates (
-      id TEXT PRIMARY KEY,
-      task_id TEXT NOT NULL,
-      lesson_type TEXT NOT NULL CHECK (lesson_type IN ('bug_fix','architecture','security','testing','deployment','workflow','permission','data_model','cli','other')),
-      title TEXT NOT NULL,
-      summary TEXT NOT NULL,
-      lesson TEXT NOT NULL,
-      applies_to TEXT NOT NULL DEFAULT '[]',
-      source_refs TEXT NOT NULL DEFAULT '[]',
-      evidence TEXT NOT NULL DEFAULT '[]',
-      confidence REAL NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
-      privacy_status TEXT NOT NULL CHECK (privacy_status IN ('pass','warning','blocked')),
-      approval_status TEXT NOT NULL CHECK (approval_status IN ('pending','approved','rejected','needs_review')),
-      verify_required INTEGER NOT NULL DEFAULT 1,
-      suggested_verification TEXT NOT NULL DEFAULT '[]',
-      last_verified_at TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY (task_id) REFERENCES task_observations(id) ON DELETE CASCADE
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_lesson_candidates_approval ON lesson_candidates(approval_status);
-    CREATE INDEX IF NOT EXISTS idx_lesson_candidates_privacy ON lesson_candidates(privacy_status);
-    CREATE INDEX IF NOT EXISTS idx_lesson_candidates_task ON lesson_candidates(task_id);
-  `);
-  db.prepare("INSERT OR IGNORE INTO memory_migrations(version, name, applied_at) VALUES (?, ?, ?)").run(
-    1,
-    "project_operating_memory_sqlite_fts5",
-    new Date().toISOString()
-  );
-  db.prepare("INSERT OR IGNORE INTO memory_migrations(version, name, applied_at) VALUES (?, ?, ?)").run(
-    2,
-    "short_memory_notes_sqlite_fts5",
-    new Date().toISOString()
-  );
-  applyContentHashMigration(db);
-  db.prepare("INSERT OR IGNORE INTO memory_migrations(version, name, applied_at) VALUES (?, ?, ?)").run(
-    3,
-    "memory_content_hashes",
-    new Date().toISOString()
-  );
-  db.prepare("INSERT OR IGNORE INTO memory_migrations(version, name, applied_at) VALUES (?, ?, ?)").run(
-    4,
-    "lesson_proposal_pipeline",
-    new Date().toISOString()
-  );
+    db.exec("COMMIT;");
+  } catch (error) {
+    try { db.exec("ROLLBACK;"); } catch { /* preserve the migration failure */ }
+    throw error;
+  }
 }
 
 function applyContentHashMigration(db: DatabaseSync): void {
@@ -2368,31 +2536,29 @@ function updateShortMemoryAccess(db: DatabaseSync, id: string, now: string): voi
   db.prepare("UPDATE short_memory_notes SET last_accessed_at = ?, access_count = access_count + 1 WHERE id = ?").run(now, id);
 }
 
-async function projectMemorySourceExists(cwd: string, source: string): Promise<boolean> {
-  const dbPath = (await initProjectMemoryStorage(cwd)).dbPath;
-  const db = await openProjectMemoryDatabase(dbPath);
+async function initializeProjectMemoryDatabase(cwd: string): Promise<{ target: CheckedMemoryPath; db: DatabaseSync }> {
+  const target = await checkedSqliteTarget(cwd, PROJECT_MEMORY_DB_FILE, true);
+  const db = await openProjectMemoryDatabase(target);
   try {
-    const row = db.prepare("SELECT id FROM memory_items WHERE source = ? LIMIT 1").get(source) as { id: string } | undefined;
-    return Boolean(row);
-  } finally {
+    applyProjectMemorySchema(db);
+    return { target, db };
+  } catch (error) {
     db.close();
+    throw error;
   }
 }
 
-async function ensureProjectMemoryDbPath(cwd: string): Promise<string> {
-  const memoryDir = path.resolve(cwd, ".lmti", "memory");
-  await fs.mkdir(memoryDir, { recursive: true });
-  return path.join(memoryDir, PROJECT_MEMORY_DB_FILE);
-}
-
-async function openProjectMemoryDatabase(dbPath: string): Promise<DatabaseSync> {
+async function openProjectMemoryDatabase(target: CheckedMemoryPath): Promise<DatabaseSync> {
+  const sqlite = await import("node:sqlite");
+  // Reuse this operation's parent/main identities, and inspect current sidecars.
+  await target.recheck();
+  const db = new sqlite.DatabaseSync(target.filename);
   try {
-    const sqlite = await import("node:sqlite");
-    return new sqlite.DatabaseSync(dbPath);
+    db.exec("PRAGMA foreign_keys = ON;");
+    return db;
   } catch (error) {
-    throw new Error(
-      `Project Operating Memory requires Node.js with node:sqlite support. Current runtime could not load node:sqlite: ${(error as Error).message}`
-    );
+    db.close();
+    throw error;
   }
 }
 
@@ -2630,16 +2796,6 @@ function createEmptyStats(): ProjectMemoryStats {
       deleted: 0
     }
   };
-}
-
-function confidenceToNumber(confidence: MemoryRecord["confidence"]): number {
-  if (confidence === "high") {
-    return 0.9;
-  }
-  if (confidence === "low") {
-    return 0.35;
-  }
-  return 0.65;
 }
 
 export type { LibraryClassification, LibraryPrivacyLevel, LibraryZone };

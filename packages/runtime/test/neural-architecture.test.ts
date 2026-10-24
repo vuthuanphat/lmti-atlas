@@ -6,10 +6,14 @@ const repoRoot = process.cwd();
 
 describe("neural architecture boundaries", () => {
   it("keeps runtime as orchestration over kernel, cognition, memory, privacy, and security", () => {
-    const source = readText("packages/runtime/src/index.ts");
+    const source = readText("packages/runtime/src/demo-runtime.ts");
+    const agentSource = readText("packages/runtime/src/agent.ts");
+    const compatibilitySource = readText("packages/runtime/src/index.ts");
     const manifest = readJson("packages/runtime/package.json");
 
-    expect(source).toContain('export { buildContextPack, formatInspection, inspectAmf } from "@atlas/kernel";');
+    expect(agentSource).toContain('export { buildContextPack, formatInspection, inspectAmf } from "@atlas/kernel";');
+    expect(agentSource).not.toMatch(/@atlas\/(agents|tools|context|security)|demo-runtime/);
+    expect(compatibilitySource).toContain('export * from "./demo-runtime";');
     expect(source).toContain('import { inferIntent } from "@atlas/kernel";');
     expect(source).toContain('import { memorySearchResultsToCognitiveItems, runCognitiveCycle } from "@atlas/cognition";');
     expect(source).toContain('import { redactText } from "@atlas/privacy";');
@@ -20,10 +24,18 @@ describe("neural architecture boundaries", () => {
   });
 
   it("keeps CLI cognition and world-model conversion in domain packages", () => {
-    const source = readText("packages/cli/src/index.ts");
+    const source = readTypeScriptTree("packages/cli/src");
+    const cognition = readText("packages/cli/src/commands/cognition.ts");
+    const world = readText("packages/cli/src/commands/world.ts");
 
-    expect(source).toContain('import { contextPackToCognitiveItems, runCognitiveCycle } from "@atlas/cognition";');
-    expect(source).toContain('import { contextPackToBeliefs, contextPackToSensoryInputs, estimateComputeCost, runWorldModelCycle } from "@atlas/world-model";');
+    expect(source).toContain('from "@atlas/runtime/agent";');
+    expect(source).not.toContain('from "@atlas/runtime";');
+
+    expect(cognition).toContain('import { contextPackToCognitiveItems, runCognitiveCycle } from "@atlas/cognition";');
+    expect(world).toContain('from "@atlas/world-model";');
+    for (const conversion of ["contextPackToBeliefs", "contextPackToSensoryInputs", "estimateComputeCost", "runWorldModelCycle"]) {
+      expect(world).toMatch(new RegExp(`import \\{[^}]*\\b${conversion}\\b[^}]*\\} from "@atlas/world-model";`));
+    }
     expect(source).not.toMatch(/function contextPackToCognitiveItems|function contextPackToSensoryInputs|function confidenceWeight/);
   });
 
@@ -61,6 +73,16 @@ describe("neural architecture boundaries", () => {
 
 function readText(relativePath: string): string {
   return readFileSync(path.join(repoRoot, relativePath), "utf8");
+}
+
+function readTypeScriptTree(relativeDirectory: string): string {
+  return readdirSync(path.join(repoRoot, relativeDirectory), { withFileTypes: true })
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .flatMap(entry => {
+      const relative = path.join(relativeDirectory, entry.name);
+      if (entry.isDirectory()) return [readTypeScriptTree(relative)];
+      return entry.isFile() && entry.name.endsWith(".ts") ? [readText(relative)] : [];
+    }).join("\n");
 }
 
 function readJson(relativePath: string): { name: string; dependencies?: Record<string, string>; devDependencies?: Record<string, string> } {

@@ -2,15 +2,18 @@
 
 > Status: Active alpha-release reality check
 
-Date: 2026-07-02
+Date: updated 2026-10-11 after local consolidation. See the
+[execution report](plans/2026-10-11-cleanup-execution.md) for actual tool versions,
+pass/skip counts and remaining gates.
 
 Purpose: keep public documentation, command claims, and capability language
 aligned with the actual local-alpha repository state.
 
 ## Scope Rules
 
-- LMTI Atlas is a local-first project memory and safety layer for AI coding
-  agents.
+- LMTI organizes project knowledge and system architecture. Studio is the local
+  topology/IoT application; memory, context, privacy, verification and reviewed
+  lessons remain independent foundations.
 - LMTI is not a complete AI framework, artificial mind, hosted platform, or
   replacement for tests and human review.
 - Thoth selects and loads skill instructions. It does not execute tasks,
@@ -25,17 +28,20 @@ aligned with the actual local-alpha repository state.
 | Area | Expected Reality | Current Status | Verification |
 |---|---|---|---|
 | README | Required release sections exist and use alpha language. | Pass | Manual docs review. |
-| Markdown formatting | Public release docs should be readable, not collapsed. | Pending final scan | Run long-line and markdown sanity checks after edits. |
+| Markdown formatting | Public release docs should be readable, not collapsed. | Local scan | Local link/format checks after cleanup; historical prose retained. |
 | `.gitignore` | Local state, DBs, logs, temp files, and secrets are ignored. | Warn | `.lmti/` is ignored for new files; three `.lmti/` docs/boundary files remain tracked. |
 | Package versions | Workspace packages use `0.1.0-alpha.1`. | Pass | Package metadata scan. |
 | License metadata | Package files use `Apache-2.0`; `LICENSE` exists. | Pass | Package metadata scan. |
 | CLI docs | Commands are marked implemented, experimental, or planned. | Pass | README and docs review. |
-| CI | CI installs with pnpm, builds, and tests. | Pass | `.github/workflows/ci.yml`. |
+| CI | TS, Go/Node bridge and native/Python lanes exist. | Defined; hosted run pending | Workflow files; local tests are not a GitHub run. |
 | CHANGELOG | Alpha release entry exists. | Pass | `CHANGELOG.md`. |
 | SECURITY | Reporting, local state, not-to-commit, and limitations are documented. | Pass | `SECURITY.md`. |
 | CONTRIBUTING | Setup, branches, commits, PR checklist, security, docs rules exist. | Pass | `CONTRIBUTING.md`. |
 | Publish preflight | Release gate is documented and runnable. | Pass for docs; runtime status depends on current tree | Run command before release. |
-| Go core | Experimental and not fully verified here. | Warn | Local Go toolchain is unavailable. |
+| Go compatibility | Experimental separate memory schema/Node bridge. | 26 local tests pass, no test skip | Execution report; no topology-core replacement claim. |
+| Architecture Studio | Typed C++/Qt desktop with SQLite revisions. | Local build and 3 CTest pass | Manual operator and clean-machine packaging gates remain. |
+| Python SDK/MCP | Scoped topology reads and proposals over native CLI/stdio. | 8 tests pass, no skip; SDK smoke pass | Product MCP-client configuration still needs acceptance. |
+| Legacy import writes | Must preserve policy/provenance/lifecycle before writes. | Blocked; dry-run available | TS/Go guards and store-preservation tests; C4 remains gated. |
 
 ## Command Reality Matrix
 
@@ -54,7 +60,7 @@ aligned with the actual local-alpha repository state.
 | `lmti skill list/route/show/validate` | Implemented | Primary skill-routing surface. |
 | `lmti thoth ...` | Experimental | Advanced diagnostics. |
 | `lmti framework ...` | Experimental | Framework metadata only. |
-| `lmti migrate from-json` | Experimental | Go-core path exists; TypeScript-friendly parity is planned. |
+| `lmti migrate from-json` | Experimental inventory | Go dry-run retained; actual legacy import writes blocked pending lossless mapping. |
 | `lmti adapter list/test` | Planned | Not a current release claim. |
 | Hosted sync, distributed runtime, multi-language SDKs | Planned/deferred | Not current product capability. |
 
@@ -64,7 +70,8 @@ aligned with the actual local-alpha repository state.
 - Run `node packages/cli/dist/index.js publish check` immediately before
   public release work.
 - Review old ATLAS archive docs before publishing docs externally.
-- Install or expose Go before treating Go-core tests as verified.
+- Preserve Node SQLite bridge coverage and record skipped tests in Go/Python verification.
+- Complete operator UI, product MCP-client and clean-machine distribution checks.
 - Confirm official security and maintainer contact paths.
 - Decide whether tracked `.lmti/` documentation files should remain public or
   be untracked in a separate owner-approved cleanup.

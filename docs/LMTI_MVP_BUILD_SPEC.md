@@ -1,8 +1,13 @@
 # LMTI MVP Build Spec
 
-Status: implementation contract candidate
+Status: historical coding-agent implementation contract candidate
 Scope: Coding Agent / Codex local MVP
 Goal: replace draft tables with a buildable kernel contract
+
+Current implementation direction is coordinated by [the master plan](LMTI_MASTER_PLAN.md)
+and [support map](component-support.md). The keep/cut lists below belong to the
+earlier coding-agent slice and do not retire current lesson flows or the
+accepted local Studio MVP.
 
 This document is not another vision RFC. It is the first build spec for the
 LMTI preflight kernel.

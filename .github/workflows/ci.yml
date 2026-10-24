@@ -6,30 +6,75 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 10.13.1
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: pnpm
 
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build
         run: pnpm build
 
       - name: Test
-        run: pnpm test
+        run: pnpm test --maxWorkers=2
+
+      - name: Verify private storage with restrictive umask
+        run: |
+          umask 077
+          pnpm exec vitest run --configLoader native --maxWorkers=2 packages/memory/test packages/privacy/test packages/migration/test
+
+  go-compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      - name: Verify SQLite bridge prerequisite
+        run: |
+          go version
+          node --version
+          node -e "const { DatabaseSync } = require('node:sqlite'); new DatabaseSync(':memory:').close();"
+      - name: Go compatibility tests with skip accounting
+        run: |
+          mkdir -p build/verification
+          go test -json ./... > build/verification/go-tests.jsonl
+          node <<'JS'
+          const fs = require('node:fs');
+          const events = fs.readFileSync('build/verification/go-tests.jsonl', 'utf8').trim().split('\n').map(JSON.parse);
+          const tests = events.filter(event => event.Test);
+          const skipped = tests.filter(event => event.Action === 'skip');
+          console.log({passed: tests.filter(event => event.Action === 'pass').length, skipped: skipped.length});
+          if (skipped.some(event => event.Package.endsWith('/internal/storage'))) {
+            throw new Error('Go storage tests were skipped; the SQLite bridge is not verified.');
+          }
+          JS

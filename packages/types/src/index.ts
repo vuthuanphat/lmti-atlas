@@ -247,6 +247,19 @@ export interface InspectionStats {
   amfVersion: string;
 }
 
+export interface ContextSourceFreshness {
+  status: "fresh" | "stale" | "unknown";
+  checkedAt: string;
+  scope: "compiler-source-boundary";
+  reasons: string[];
+  checkedFileCount: number;
+}
+
+export interface ContextMemorySource {
+  source: "sqlite" | "legacy_json" | "none";
+  completeness: "complete" | "incomplete";
+}
+
 export interface ContextPack {
   task: string;
   generatedAt: string;
@@ -259,7 +272,9 @@ export interface ContextPack {
     amfVersion: string;
     compiledAt: string;
     checksum: string;
+    freshness?: ContextSourceFreshness;
   };
+  memorySource?: ContextMemorySource;
   inferredIntent: AtlasInferredIntent;
   filteredOut: {
     files: number;
@@ -285,6 +300,8 @@ export interface ContextPackOptions {
   includeLowScore?: boolean;
   inferredIntent?: AtlasInferredIntent;
   memoriesFilteredOut?: number;
+  sourceFreshness?: ContextSourceFreshness;
+  memorySource?: ContextMemorySource;
 }
 
 export interface AtlasIndex {

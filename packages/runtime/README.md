@@ -2,6 +2,12 @@
 
 Experimental local runtime helpers for LMTI.
 
+The CLI uses `@atlas/runtime/agent` for project-memory context and Action View;
+this entry point does not load the session demo runtime. `@atlas/runtime/demo`
+contains `CoreRuntime` and sample session/tool orchestration. The package root
+continues exporting both surfaces for existing reference apps. These are
+project-memory helpers, separate from the native Studio topology runtime.
+
 This package supports local demos and Codex-facing helper flows. It
 orchestrates sessions, sample agents, memory, context loading, tool execution
 and security enforcement without requiring an external LLM.

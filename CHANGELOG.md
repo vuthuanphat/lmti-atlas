@@ -5,6 +5,65 @@ All notable changes to LMTI Atlas will be documented in this file.
 This project follows an alpha-first release process. Until a stable release
 exists, commands and storage contracts may change with migration notes.
 
+## v0.2.0-alpha.1 — local candidate
+
+Not published. See [release notes](docs/releases/v0.2.0-alpha.1.md) for the full
+compatibility, known-limitations and rollback information.
+
+### Added
+
+- Authenticated local web UI/API and typed native project/topology owners.
+- Scoped Python Agent SDK/MCP, evidence-bearing context and controlled replay.
+- Project MCP setup, hierarchy, reviewed proposals, project copy/activation and
+  recovery workflows in the React + Vite workspace.
+- Local operator CLI and explicitly granted browser create/register, folder link,
+  pin and reference removal; source files are preserved and session scope stays fixed.
+- Thirteen typed browser content categories including work/milestones, software,
+  releases/bindings and verification, with review/confirmation and owner recovery.
+- English/Vietnamese onboarding separates empty libraries from failed owner reads.
+- Reviewed demo/empty workspace setup, nonsecret pinned launch profile and reusable
+  `Open-LMTI.cmd`; package/runtime checks precede workspace creation.
+- Interactive operator console with fresh authenticated tabs and graceful drain;
+  distinct session/connection/owner and writer/recovery guidance, plus a read-only
+  service connection check.
+- Windows native audit ACL helper and artifact/third-party release materials.
+
+### Changed
+
+- Align workspace release metadata, canonical repository identity and supported
+  Node requirement with the verified Node 24 workflow.
+- Split CLI dispatch; retain Go compatibility and internal `@atlas/*` namespaces.
+- Reduce delivery artwork size, hidden-panel clock work and repeated metadata reads.
+- Move public layer documentation out of the operational `.lmti/` directory.
+- Preserve the current complete workspace lockfile; the old public lockfile
+  omitted the CLI's `@atlas/runtime` dependency and failed frozen installation.
+- Remove the native Qt desktop UI, GUI runtime, launchers, renderer and desktop
+  tests; retain Qt Core/Sql backend owners and Windows browser/backend support.
+
+### Security
+
+- Preserve UTF-8 JSON on Windows PowerShell 5 launcher/doctor pipes; use explicit
+  encoding without changing grants, path validation or owner authority.
+- Workspace reopen validates saved grants and package integrity; it does not
+  persist browser tokens, install dependencies, change execution policy or
+  automatically acknowledge recovery/migrate schemas.
+
+- Move Go credential-scanning source to `internal/credentialscan`; remove obsolete
+  source-only exceptions for `internal/secrets`. Secret-path rules remain enforced.
+
+- Strengthen memory/migration boundaries and audit writer coordination while
+  preserving permission checks, review requirements and failure behavior.
+- Upgrade Vitest to 4.1.12 for GHSA-qxg6-89mg-rqv8 / GHSA-xp26-3454-mjgp.
+- Pin CI actions to verified revisions and install dependencies without lifecycle
+  scripts; keep workflow permissions read-only.
+
+### Compatibility
+
+- Python version is `0.2.0a1`; native numeric version is `0.2.0`.
+- Product version changes do not rewrite storage, AMF or policy schema versions.
+- Registry publishing, live integrations and platform acceptance remain explicit
+  gates; local test results are not production certification.
+
 ## v0.1.0-alpha.1
 
 Initial public alpha preparation.

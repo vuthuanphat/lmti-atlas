@@ -1,3 +1,3 @@
-module github.com/vuthuanphat6-byte/lmti-atlas
+module github.com/vuthuanphat/lmti-atlas
 
 go 1.22

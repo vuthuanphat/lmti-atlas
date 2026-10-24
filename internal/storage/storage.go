@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/pkg/contract"
+	"github.com/vuthuanphat/lmti-atlas/pkg/contract"
 )
 
 const DefaultPath = ".lmti/memory.sqlite"

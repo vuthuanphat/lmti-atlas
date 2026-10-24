@@ -1,10 +1,10 @@
 {
   "name": "lmti",
-  "version": "0.1.0-alpha.1",
+  "version": "0.2.0-alpha.1",
   "description": "LMTI CLI for local AI memory, safety, and skill routing for AI coding agents. lmti is the primary bin; atlas is a legacy/internal alias.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vuthuanphat6-byte/lmti-atlas.git",
+    "url": "https://github.com/vuthuanphat/lmti-atlas.git",
     "directory": "packages/cli"
   },
   "private": false,
@@ -28,9 +28,11 @@
     "dist"
   ],
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   },
   "dependencies": {
+    "@atlas/drive": "workspace:*",
+    "@atlas/impact": "workspace:*",
     "@atlas/compiler": "workspace:*",
     "@atlas/cognition": "workspace:*",
     "@atlas/frameworks": "workspace:*",

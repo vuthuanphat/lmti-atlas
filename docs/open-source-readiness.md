@@ -1,63 +1,67 @@
-# Open Source Readiness
+# Open-source readiness — v0.2.0-alpha.1
 
-> Status: Active alpha-release checklist
+Canonical repository: `https://github.com/vuthuanphat/lmti-atlas`.
+Status: unpublished release candidate. After the startup/readiness work, the
+owner authorized integrating the latest source into `main` and refreshing the
+README on 2026-10-24. This supersedes the earlier no-main hold for source
+integration only. **Public runtime release and tag publication remain held.**
+Authorization is not evidence that a push, CI run or merge has completed.
 
-This checklist tracks whether the repository is ready to be published as
-`v0.1.0-alpha.1`.
+## Prepared scope
 
-Expected public repository: `vuthuanphat6-byte/lmti-atlas`.
+- Workspace version `0.2.0-alpha.1`, Python `0.2.0a1`, native numeric `0.2.0`.
+- React + Vite local web Windows x64 package and source build; Node.js local API
+  and native/Python owners. Qt Core/Sql remains a backend dependency; the Qt
+  desktop UI and fallback launcher have been removed.
+- Source-based CLI/SDK/MCP; no npm/PyPI publication or full Linux/macOS support claim.
+- Apache-2.0 source with separate third-party licenses and corresponding Qt source.
+- Public layer documentation is under `docs/integration/`; operational `.lmti/`
+  remains ignored and must not be committed.
 
-## Readiness Matrix
+## Evidence required for candidate acceptance
 
-| Area | Status | Evidence | Remaining Work |
-|---|---|---|---|
-| README | Pass | README has alpha status, scope, quick start, CLI usage, storage, security, docs, license, and author sections. | Re-check before release. |
-| License | Pass | `LICENSE` exists and package metadata uses `Apache-2.0`. | Confirm owner approval of Apache-2.0. |
-| Security policy | Pass | `SECURITY.md` documents supported alpha versions, reporting, local state, and limitations. | Publish official private security contact. |
-| Contributing guide | Pass | `CONTRIBUTING.md` includes setup, branches, commits, PR checklist, security rules, and docs rules. | Keep examples current. |
-| Code of conduct | Warn | `CODE_OF_CONDUCT.md` exists. | Publish official maintainer contact. |
-| CI workflow | Pass | `.github/workflows/ci.yml` runs pnpm install, build, and test on Node 24. | Confirm first public CI run. |
-| Package versions | Pass | Workspace packages are normalized to `0.1.0-alpha.1`. | Re-run package metadata check before tagging. |
-| Package license fields | Pass | Workspace package files include `Apache-2.0`. | Re-run package metadata check before publishing packages. |
-| `.gitignore` | Warn | New `.lmti/`, `.atlas/`, temp files, logs, DBs, and secret-like files are ignored. | Three `.lmti/` docs/boundary files are already tracked and need owner review before untracking. |
-| CLI docs | Pass | README and docs distinguish implemented, experimental, and planned commands. | Keep TypeScript and Go-core status separate. |
-| Local storage docs | Pass | README states `.lmti/` is local runtime state and SQLite is target durable memory. | Add migration notes when storage contracts change. |
-| Security model | Pass | Docs say LMTI reduces risk and does not replace tests, secret scanning, or human review. | Continue expanding adapter-specific tests. |
-| Publish preflight docs | Pass | `docs/publish-preflight.md` documents checks, exit codes, and blocked behavior. | Re-run command immediately before public release. |
-| Reality cleanup | Warn | `docs/reality-checklist.md` records local-alpha caveats and Go-toolchain limitation. | Re-run scans after final edits. |
-| Public publish gate | Blocked until final clean tree | `lmti publish check` exists and blocks unsafe release states. | Must pass or have owner-approved remediation immediately before release. |
+The accompanying local acceptance report must identify the candidate commit,
+artifact hashes, tool versions and actual suite pass/fail/skip counts. Required
+checks are frozen dependency installation, TS/web build, TS/UI/API tests,
+native CTest, Python/native integrations, Go compatibility, package integrity,
+browser workflows, secret scanning and dependency/license review. Record any
+failure and repair history; do not convert unexecuted integration tests to passes.
 
-## Required Before Public Release
+## Recorded baseline and current work
 
-- Run `pnpm build`.
-- Run `pnpm test`.
-- Run `node packages/cli/dist/index.js publish check`.
-- Review `git status --short`.
-- Review tracked `.lmti/` files and decide whether they are intentionally
-  public documentation or should be removed from tracking in a separate commit.
-- Confirm the public remote is `https://github.com/vuthuanphat6-byte/lmti-atlas.git`.
-- Confirm Apache-2.0 is the intended public license.
-- Publish private security and maintainer contact paths.
+Commit `771fc40f439ec1fe49a1fa1bca3183e58ccbae28` passed the four hosted jobs in
+[CI](https://github.com/vuthuanphat/lmti-atlas/actions/runs/39950637360) and
+[native/Python CI](https://github.com/vuthuanphat/lmti-atlas/actions/runs/39950637385).
+Those PR test-merge results have the same tree as the recorded head. They do not
+validate later startup/readiness edits or a future merge/tag. The
+[QA record](releases/v0.2.0-alpha.1-qa.md) separates that baseline from current
+verification and open external acceptance.
 
-## Scope Guardrails
+The latest verified local runtime is commit
+`85eda3c2b63a4131508078908105b012c76a6a01`: UI 139 and API 458 pass with one API
+skip, plus fresh native/TS/Python/Go/broker/client regressions and actual saved
+launcher browser journeys. Its 405-file extracted package passed doctor and
+archive checks. See [exact validation and provenance](releases/v0.2.0-alpha.1-qa.md#latest-verified-local-runtime--85eda3c).
+The checks include five native internal capability skips and six TS skips; they
+are not independent operator or clean-Windows acceptance. Documentation changes
+and eventual merged/tag artifacts must retain their own commit/hash provenance.
 
-Safe public wording:
+## Remaining gates before runtime release publication
 
-```text
-Local-first project memory and safety layer for AI coding agents.
-Public alpha.
-Codex-first workflow.
-Memory is guidance, not truth.
-Privacy gates reduce leakage risk but do not replace dedicated secret scanning.
-Publish preflight is a safety gate, not a guarantee.
-```
+- Verify the final candidate's checksums, third-party source/license materials
+  and exact release notes. Confirm `.gitignore` and tracked files exclude local
+  data and secrets, including archives and historical reachable commits.
+- Run and record clean-Windows and independent operator acceptance. Retain
+  experimental/unverified labels for integrations not accepted with real clients.
+- GitHub Private Vulnerability Reporting was enabled and verified on 2026-10-23.
+  Recheck the channel before release publication.
+- Rerun local checks and hosted CI for changed source; verify the eventual
+  merged/tag SHA and the exact extracted distribution after any authorized merge.
+- Run `lmti publish preflight` before public pushes, PRs, remote changes or release.
+  ERROR/BLOCKED stops publication; the gate must not be weakened to force a pass.
+- Keep the runtime prerelease in draft. Source integration into `main` is now
+  authorized separately; clean Windows and independent operator acceptance remain
+  open for the runtime release. Do not create a public tag or publish the release
+  under that source-only authorization, and do not move historical tags.
 
-Avoid these claims:
-
-- Production-ready agent runtime.
-- Complete AI framework.
-- Artificial mind.
-- Universal all-agent support.
-- Hosted team sync.
-- Model training or autonomous self-learning.
-- Replacement for tests, source review, or human approval.
+See [release notes](releases/v0.2.0-alpha.1.md) and [build instructions](release-build.md).

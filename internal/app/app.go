@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/config"
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/memory"
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/output"
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/publish"
-	"github.com/vuthuanphat6-byte/lmti-atlas/internal/storage"
-	"github.com/vuthuanphat6-byte/lmti-atlas/pkg/contract"
+	"github.com/vuthuanphat/lmti-atlas/internal/config"
+	"github.com/vuthuanphat/lmti-atlas/internal/memory"
+	"github.com/vuthuanphat/lmti-atlas/internal/output"
+	"github.com/vuthuanphat/lmti-atlas/internal/publish"
+	"github.com/vuthuanphat/lmti-atlas/internal/storage"
+	"github.com/vuthuanphat/lmti-atlas/pkg/contract"
 )
 
 func Run(args []string, stdout io.Writer, stderr io.Writer) int {

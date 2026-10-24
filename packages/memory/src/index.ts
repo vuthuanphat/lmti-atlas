@@ -1,5 +1,5 @@
 import { promises as fs } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import type {
   AmfDocument,
@@ -19,6 +19,7 @@ import type {
   MemorySearchOptions,
   MemorySensitivity,
   NewMemoryRecord,
+  ObserverFrame,
   PrivacyContext
 } from "@atlas/types";
 import { AMF_VERSION, createEmptyAmf } from "@atlas/types";
@@ -27,6 +28,7 @@ import {
   createPrivacyContext,
   createSafeSummary,
   evaluateAccess,
+  hardGateMemoryMetadata,
   redactText
 } from "@atlas/privacy";
 import type { MemoryAddInput, MemorySearchQuery, MemoryStore } from "./types";
@@ -37,6 +39,9 @@ import { encodeMemory } from "./encode";
 import { DEFAULT_CONTEXT_ACTIVATION_THRESHOLD, explainPrivacyDecision, scoreMemoryForRetrieval } from "./retrieval";
 import { reinforceMemoryRecord } from "./reinforce";
 import { reviewMemoryRecords, type MemoryReviewReport } from "./review";
+import { readProjectMemoryRecords } from "./sqlite-store";
+import { checkedMemoryFile, MAX_CONTEXT_MEMORY_BYTES, readBoundedMemoryText, requireCompleteMemoryScan } from "./read-boundary";
+import { checkedStoragePath, ensureMemoryDirectory, writeMemoryFile } from "./storage-boundary";
 
 export type { MemoryAddInput, MemorySearchQuery, MemoryStore } from "./types";
 export type { MemoryRecord, MemorySearchResult };
@@ -55,6 +60,8 @@ export {
   getLessonCandidate,
   getLessonCandidateReviewSummary,
   initProjectMemoryStorage,
+  readProjectMemorySnapshot,
+  reviewDesktopLesson,
   LIBRARY_ZONES,
   listLessonCandidates,
   migrateJsonMemoryToProjectMemory,
@@ -253,6 +260,141 @@ export interface FetchAllowedMemoryContentOptions extends MemoryRuntimeOptions {
   limit?: number;
 }
 
+export interface ReadContextMemoryOptions extends MemorySearchOptions, MemoryRuntimeOptions {
+  taskIntent?: InferredIntent;
+  source?: "auto" | "sqlite" | "legacy_json";
+  observer?: ObserverFrame;
+  maxCandidates?: number;
+}
+
+export interface ContextMemorySelection extends ContextMemorySearchResult {
+  source: "sqlite" | "legacy_json" | "none";
+  completeness: "complete";
+  revision: string;
+  policySafeCandidates: PolicySafeMemoryResult[];
+  gate: ReturnType<typeof hardGateMemoryMetadata>;
+}
+
+/** One consistent, side-effect-free read for normal context and preflight.
+ * Final limits apply after policy-safe scoring. A scan beyond the supported
+ * 10,000-record/16-MiB budget fails explicitly instead of claiming completeness.
+ */
+export async function readContextMemory(query: string, options: ReadContextMemoryOptions = {}): Promise<ContextMemorySelection> {
+  if (typeof query !== "string" || query.length > 16_384) throw new Error("MEMORY_QUERY_INVALID");
+  if (options.source !== undefined && !["auto", "sqlite", "legacy_json"].includes(options.source)) throw new Error("MEMORY_SOURCE_INVALID");
+  const cwd = options.cwd ?? process.cwd();
+  const now = options.now ?? new Date();
+  if (!Number.isFinite(now.getTime())) throw new Error("MEMORY_TIME_INVALID");
+  const limit = options.limit ?? 16;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 10_000) throw new Error("MEMORY_LIMIT_INVALID");
+  const maxCandidates = options.maxCandidates ?? 10_000;
+  if (!Number.isSafeInteger(maxCandidates) || maxCandidates < 1 || maxCandidates > 10_000) throw new Error("MEMORY_BUDGET_INVALID");
+  const taskIntent = options.taskIntent ?? createUnknownIntent(query);
+  const privacyContext = privacyContextForOptions(options, { includeSecret: false, includeRaw: options.includeRaw ?? false, command: "context" });
+  const snapshot = await readContextMemoryRecords(cwd, options.source ?? "auto", privacyContext.projectId);
+  if (snapshot.records.length > maxCandidates) throw new Error("MEMORY_READ_BUDGET_EXCEEDED");
+  const records = snapshot.records.filter(record => (!options.scope || record.scope === options.scope) && (!options.kind || record.kind === options.kind));
+  const metadata = records.map(record => {
+    const entry = toMemoryMetadata(record, now);
+    // SQLite has explicit lifecycle/approval state. A generated tag such as
+    // "review" must not reclassify an approved active record as pending.
+    if (snapshot.source === "sqlite") entry.status = record.expiresAt && Date.parse(record.expiresAt) <= now.getTime() ? "expired" : record.status ?? "active";
+    return entry;
+  });
+  const observer = options.observer ?? { observerRole: privacyContext.role, sinkRole: privacyContext.role, effectiveContextRole: privacyContext.role, projectId: privacyContext.projectId, modelTarget: privacyContext.role === "external_model" ? "external_model" : "local", userId: "local", agentId: "context" };
+  const gate = hardGateMemoryMetadata({ metadata, observer, privacyContext, now });
+  gate.allowed = gate.allowed.map(entry => ({
+    ...entry,
+    projectId: redactText(entry.projectId),
+    supersededBy: entry.supersededBy ? redactText(entry.supersededBy) : undefined
+  }));
+  const byId = new Map(records.map(record => [record.id, record]));
+  const decisionIds = new Map(gate.policyDecisions.map(decision => [decision.memoryId, decision.id]));
+  const policySafeCandidates: PolicySafeMemoryResult[] = [];
+  const ranked: MemorySearchResult[] = [];
+  let filteredOut = gate.blocked.length;
+  for (const entry of gate.allowed) {
+    const record = byId.get(entry.id)!;
+    const sanitized = await sanitizeMemoryForContext(record, privacyContext, taskIntent, { cwd, readOnly: true });
+    if (!sanitized.record || sanitized.mode === "excluded") { filteredOut += 1; continue; }
+    const safeRecord = redactContextRecord(sanitized.record);
+    policySafeCandidates.push({ metadata: entry, mode: sanitized.mode, policyDecisionId: decisionIds.get(entry.id)!, scoreInputs: createPolicySafeScoreInputs(entry, safeRecord, sanitized.mode), score: 0, why: [sanitized.reason], ...(sanitized.mode === "raw" ? { safeContent: safeRecord.content } : { safeSummary: safeRecord.content }) });
+    const score = scoreMemoryForRetrieval(safeRecord, { query, taskIntent, now });
+    if (score.filteredOutReason || score.score < (options.includeLowScore ? 1 : CONTEXT_MEMORY_SCORE_THRESHOLD) || score.activation < (options.includeLowScore ? 0.2 : DEFAULT_CONTEXT_ACTIVATION_THRESHOLD)) { filteredOut += 1; continue; }
+    ranked.push({ record: safeRecord, ...score, mode: sanitized.mode, promptPolicy: safeRecord.promptPolicy, why: [...score.why, sanitized.reason] });
+  }
+  ranked.sort((left, right) => right.score - left.score || (right.activation ?? 0) - (left.activation ?? 0) || right.record.importance - left.record.importance || left.record.id.localeCompare(right.record.id));
+  return { source: snapshot.source, completeness: "complete", revision: snapshot.revision, results: ranked.slice(0, limit), filteredOut, policySafeCandidates, gate };
+}
+
+function redactContextRecord(record: MemoryRecord): MemoryRecord {
+  // Whitelist fields: JSON compatibility records may contain arbitrary extra
+  // properties that have never passed a prompt policy or redaction gate.
+  return {
+    id: record.id, scope: record.scope, kind: record.kind,
+    title: redactText(record.title), content: redactText(record.content),
+    projectId: redactText(record.projectId), sourceRefs: record.sourceRefs.map(redactText), tags: record.tags.map(redactText),
+    importance: record.importance, confidence: record.confidence, sensitivity: record.sensitivity, promptPolicy: record.promptPolicy,
+    createdAt: record.createdAt, updatedAt: record.updatedAt, expiresAt: record.expiresAt, version: record.version,
+    status: record.status, memoryStrength: record.memoryStrength, baseActivation: record.baseActivation,
+    retrievalCount: record.retrievalCount, lastRetrievedAt: record.lastRetrievedAt, lastReinforcedAt: record.lastReinforcedAt,
+    decayRate: record.decayRate, stability: record.stability, priorityScore: record.priorityScore,
+    privacySafeSummary: record.privacySafeSummary ? redactText(record.privacySafeSummary) : undefined,
+    contextCues: record.contextCues?.map(redactText), negativeCues: record.negativeCues?.map(redactText), supersededBy: record.supersededBy ? redactText(record.supersededBy) : undefined,
+    associations: record.associations?.map(association => ({ reason: redactText(association.reason), targetMemoryId: redactText(association.targetMemoryId), weight: association.weight, createdAt: association.createdAt }))
+  };
+}
+
+async function readContextMemoryRecords(cwd: string, source: "auto" | "sqlite" | "legacy_json", projectId: string): Promise<{ records: MemoryRecord[]; source: ContextMemorySelection["source"]; revision: string }> {
+  if (source !== "legacy_json") {
+    const sqlite = await readProjectMemoryRecords(cwd, projectId);
+    if (sqlite) return { ...sqlite, records: validateContextRecords(sqlite.records), source: "sqlite" };
+    if (source === "sqlite") throw new Error("MEMORY_SOURCE_UNAVAILABLE");
+  }
+  const records: MemoryRecord[] = [];
+  const digest = createHash("sha256");
+  let bytes = 0, present = false;
+  for (const name of [SHORT_TERM_MEMORY_FILE, LONG_TERM_MEMORY_FILE, LESSONS_MEMORY_FILE]) {
+    const file = await checkedMemoryFile(cwd, name, MAX_CONTEXT_MEMORY_BYTES);
+    digest.update(name).update("\0");
+    if (!file) { digest.update("missing\0"); continue; }
+    present = true;
+    const content = await readBoundedMemoryText(file, MAX_CONTEXT_MEMORY_BYTES - bytes);
+    bytes += Buffer.byteLength(content);
+    if (bytes > MAX_CONTEXT_MEMORY_BYTES) throw new Error("MEMORY_READ_BUDGET_EXCEEDED");
+    let parsed: unknown;
+    try { parsed = JSON.parse(content); } catch { throw new Error("MEMORY_SOURCE_INVALID"); }
+    if (!Array.isArray(parsed)) throw new Error("MEMORY_SOURCE_INVALID");
+    records.push(...validateContextRecords(parsed));
+    requireCompleteMemoryScan(records);
+    digest.update(content).update("\0");
+  }
+  return { records: validateContextRecords(records), source: present ? "legacy_json" : "none", revision: digest.digest("hex") };
+}
+
+function validateContextRecords(values: unknown[]): MemoryRecord[] {
+  requireCompleteMemoryScan(values);
+  const ids = new Set<string>();
+  return values.map(value => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("MEMORY_SOURCE_INVALID");
+    const record = value as MemoryRecord;
+    if (typeof record.id !== "string" || !/^[a-zA-Z0-9._:-]{1,160}$/.test(record.id) || ids.has(record.id) || typeof record.title !== "string" || typeof record.content !== "string" || !["public", "internal", "confidential", "secret"].includes(record.sensitivity)
+      || (record.promptPolicy !== undefined && !["allow_raw", "summarize_only", "do_not_prompt"].includes(record.promptPolicy))
+      || (record.status !== undefined && !["active", "weak", "archived", "superseded"].includes(record.status))
+      || !Array.isArray(record.tags) || record.tags.some(tag => typeof tag !== "string") || !Array.isArray(record.sourceRefs) || record.sourceRefs.some(ref => typeof ref !== "string")
+      || !Number.isFinite(record.importance) || record.importance < 0 || record.importance > 1 || !Number.isFinite(Date.parse(record.createdAt)) || !Number.isFinite(Date.parse(record.updatedAt)) || (record.expiresAt !== undefined && !Number.isFinite(Date.parse(record.expiresAt)))) throw new Error("MEMORY_SOURCE_INVALID");
+    if (typeof record.projectId !== "string" || !record.projectId || !["short_term", "long_term"].includes(record.scope)
+      || [record.lastRetrievedAt, record.lastReinforcedAt, record.nextReviewAt].some(value => value !== undefined && (typeof value !== "string" || !Number.isFinite(Date.parse(value))))
+      || [record.memoryStrength, record.baseActivation, record.retrievalCount, record.decayRate, record.stability, record.priorityScore, record.version, record.reviewIntervalDays, record.easinessFactor, record.reviewCount].some(value => value !== undefined && (typeof value !== "number" || !Number.isFinite(value)))
+      || [record.contextCues, record.negativeCues].some(value => value !== undefined && (!Array.isArray(value) || value.some(item => typeof item !== "string")))
+      || (record.privacySafeSummary !== undefined && typeof record.privacySafeSummary !== "string")
+      || (record.supersededBy !== undefined && typeof record.supersededBy !== "string")
+      || (record.associations !== undefined && (!Array.isArray(record.associations) || record.associations.some(item => !item || typeof item.reason !== "string" || typeof item.targetMemoryId !== "string" || !Number.isFinite(item.weight) || !Number.isFinite(Date.parse(item.createdAt)))))) throw new Error("MEMORY_SOURCE_INVALID");
+    ids.add(record.id);
+    return normalizeStoredMemory(record);
+  });
+}
+
 export function createDefaultLmtiConfig(): LmtiConfig {
   return {
     version: "0.1.0",
@@ -299,52 +441,34 @@ export async function initAtlasStorage(cwd = process.cwd()): Promise<InitResult>
   const memoryDir = path.join(atlasDir, MEMORY_DIR);
   const experimentsDir = path.join(atlasDir, EXPERIMENTS_DIR);
   const eventsDir = path.join(atlasDir, EVENTS_DIR);
-  await fs.mkdir(path.join(atlasDir, "cache"), { recursive: true });
-  await fs.mkdir(path.join(atlasDir, "logs"), { recursive: true });
-  await fs.mkdir(memoryDir, { recursive: true });
-  await fs.mkdir(experimentsDir, { recursive: true });
-  await fs.mkdir(eventsDir, { recursive: true });
+  await ensureMemoryDirectory(cwd, ".lmti/cache");
+  await ensureMemoryDirectory(cwd, ".lmti/logs");
+  await ensureMemoryDirectory(cwd, ".lmti/memory");
+  await ensureMemoryDirectory(cwd, ".lmti/experiments");
+  await ensureMemoryDirectory(cwd, ".lmti/events");
 
   const indexPath = path.join(atlasDir, INDEX_FILE);
   const amfPath = path.join(atlasDir, AMF_FILE);
   const configPath = path.join(atlasDir, CONFIG_FILE);
-  await ensureFile(configPath, JSON.stringify(createDefaultLmtiConfig(), null, 2));
-  await ensureFile(amfPath, JSON.stringify(createPlaceholderAmf(cwd), null, 2));
-  await ensureJsonArray(path.join(memoryDir, SHORT_TERM_MEMORY_FILE));
-  await ensureJsonArray(path.join(memoryDir, LONG_TERM_MEMORY_FILE));
-  await ensureJsonArray(path.join(memoryDir, LESSONS_MEMORY_FILE));
-  await ensureFile(path.join(memoryDir, MEMORY_EVENTS_FILE), "");
-  await ensureFile(path.join(eventsDir, TASK_EVENTS_FILE), "");
+  await ensureFile(cwd, configPath, JSON.stringify(createDefaultLmtiConfig(), null, 2));
+  await ensureFile(cwd, amfPath, JSON.stringify(createPlaceholderAmf(cwd), null, 2));
+  await ensureJsonArray(cwd, path.join(memoryDir, SHORT_TERM_MEMORY_FILE));
+  await ensureJsonArray(cwd, path.join(memoryDir, LONG_TERM_MEMORY_FILE));
+  await ensureJsonArray(cwd, path.join(memoryDir, LESSONS_MEMORY_FILE));
+  await ensureFile(cwd, path.join(memoryDir, MEMORY_EVENTS_FILE), "");
+  await ensureFile(cwd, path.join(eventsDir, TASK_EVENTS_FILE), "");
 
-  try {
-    await fs.access(indexPath);
-  } catch {
-    await fs.writeFile(
-      indexPath,
-      JSON.stringify(
-        {
-          version: "0.1.0",
-          projectName: "",
-          amfPath,
-          compiledAt: "",
-          files: 0,
-          modules: 0,
-          dependencies: 0,
-          risks: 0
-        },
-        null,
-        2
-      ),
-      "utf8"
-    );
-  }
+  await ensureFile(cwd, indexPath, JSON.stringify({
+    version: "0.1.0", projectName: "", amfPath, compiledAt: "",
+    files: 0, modules: 0, dependencies: 0, risks: 0
+  }, null, 2));
 
   return { atlasDir, amfPath, indexPath, configPath, memoryDir, experimentsDir, eventsDir };
 }
 
 export async function writeAmfDocument(amf: AmfDocument, cwd = process.cwd()): Promise<InitResult> {
   const storage = await initAtlasStorage(cwd);
-  await fs.writeFile(storage.amfPath, JSON.stringify(amf, null, 2), "utf8");
+  await writeOwnedFile(cwd, storage.amfPath, JSON.stringify(amf, null, 2));
 
   const index: AtlasIndex = {
     version: amf.project.amfVersion,
@@ -357,7 +481,7 @@ export async function writeAmfDocument(amf: AmfDocument, cwd = process.cwd()): P
     risks: amf.risks.length
   };
 
-  await fs.writeFile(storage.indexPath, JSON.stringify(index, null, 2), "utf8");
+  await writeOwnedFile(cwd, storage.indexPath, JSON.stringify(index, null, 2));
   await appendEvent(cwd, {
     event: "compile",
     projectName: amf.project.name,
@@ -378,9 +502,9 @@ export async function readAmfDocument(amfPath?: string, cwd = process.cwd()): Pr
 
 export async function appendEvent(cwd: string, event: Record<string, unknown>): Promise<void> {
   const atlasDir = path.resolve(cwd, ATLAS_DIR);
-  await fs.mkdir(path.join(atlasDir, "logs"), { recursive: true });
+  await ensureMemoryDirectory(cwd, ".lmti/logs");
   const line = JSON.stringify({ ...event, recordedAt: new Date().toISOString() });
-  await fs.appendFile(path.join(atlasDir, "logs", "events.log"), `${line}\n`, "utf8");
+  await writeOwnedFile(cwd, path.join(atlasDir, "logs", "events.log"), `${line}\n`, "append");
 }
 
 export async function createMemory(record: NewMemoryRecord, options: MemoryRuntimeOptions = {}): Promise<MemoryRecord> {
@@ -714,21 +838,25 @@ export async function sanitizeMemoryForContext(
   memory: MemoryRecord,
   privacyContext: PrivacyContext,
   taskIntent: InferredIntent,
-  options: { cwd?: string; includeSecretMeta?: boolean; score?: number; why?: string[] } = {}
+  options: { cwd?: string; includeSecretMeta?: boolean; score?: number; why?: string[]; readOnly?: boolean } = {}
 ): Promise<MemorySanitizationResult> {
   const promptPolicy = normalizePromptPolicy(memory.promptPolicy, memory.sensitivity);
   const normalized = normalizeStoredMemory({ ...memory, promptPolicy });
   const cwd = options.cwd ?? process.cwd();
 
+  const audit = async (mode: MemoryContextMode, reason: string) => {
+    if (!options.readOnly) await appendContextPrivacyAudit(cwd, normalized, privacyContext, mode, reason, taskIntent, options.score);
+  };
+
   if (promptPolicy === "do_not_prompt") {
-    await appendContextPrivacyAudit(cwd, normalized, privacyContext, "excluded", "do_not_prompt memory filtered from context", taskIntent, options.score);
+    await audit("excluded", "do_not_prompt memory filtered from context");
     return { mode: "excluded", reason: "do_not_prompt memory filtered from context" };
   }
 
   if (normalized.sensitivity === "secret") {
     if (privacyContext.role === "owner" && options.includeSecretMeta) {
       const safeSummary = "secret memory metadata only; raw content withheld.";
-      await appendContextPrivacyAudit(cwd, normalized, privacyContext, "metadata_only", "secret memory exposed as metadata only", taskIntent, options.score);
+      await audit("metadata_only", "secret memory exposed as metadata only");
       return {
         mode: "metadata_only",
         reason: "secret memory metadata only for owner",
@@ -740,13 +868,13 @@ export async function sanitizeMemoryForContext(
         }
       };
     }
-    await appendContextPrivacyAudit(cwd, normalized, privacyContext, "excluded", "secret memory filtered from normal context", taskIntent, options.score);
+    await audit("excluded", "secret memory filtered from normal context");
     return { mode: "excluded", reason: "secret memory filtered from normal context" };
   }
 
   if (normalized.sensitivity === "confidential") {
     const safeSummary = createSafeSummary(normalized);
-    await appendContextPrivacyAudit(cwd, normalized, privacyContext, "summary", "confidential memory summarized; raw blocked", taskIntent, options.score);
+    await audit("summary", "confidential memory summarized; raw blocked");
     return {
       mode: "summary",
       reason: "confidential memory summarized; raw blocked",
@@ -761,7 +889,7 @@ export async function sanitizeMemoryForContext(
 
   if (normalized.sensitivity === "internal") {
     if (privacyContext.role === "owner" && privacyContext.includeRaw) {
-      await appendContextPrivacyAudit(cwd, normalized, privacyContext, "raw", "owner requested raw internal memory", taskIntent, options.score);
+      await audit("raw", "owner requested raw internal memory");
       return {
         mode: "raw",
         reason: "owner requested raw internal memory",
@@ -1535,11 +1663,11 @@ function normalizeSensitivity(sensitivity?: MemorySensitivity): MemorySensitivit
 
 async function initMemoryFiles(cwd: string): Promise<void> {
   const memoryDir = path.resolve(cwd, ATLAS_DIR, MEMORY_DIR);
-  await fs.mkdir(memoryDir, { recursive: true });
-  await ensureJsonArray(path.join(memoryDir, SHORT_TERM_MEMORY_FILE));
-  await ensureJsonArray(path.join(memoryDir, LONG_TERM_MEMORY_FILE));
-  await ensureJsonArray(path.join(memoryDir, LESSONS_MEMORY_FILE));
-  await ensureFile(path.join(memoryDir, MEMORY_EVENTS_FILE), "");
+  await ensureMemoryDirectory(cwd, ".lmti/memory");
+  await ensureJsonArray(cwd, path.join(memoryDir, SHORT_TERM_MEMORY_FILE));
+  await ensureJsonArray(cwd, path.join(memoryDir, LONG_TERM_MEMORY_FILE));
+  await ensureJsonArray(cwd, path.join(memoryDir, LESSONS_MEMORY_FILE));
+  await ensureFile(cwd, path.join(memoryDir, MEMORY_EVENTS_FILE), "");
 }
 
 async function readAllMemory(cwd: string): Promise<MemoryRecord[]> {
@@ -1608,24 +1736,28 @@ async function reinforceRetrievedMemories(ids: string[], options: { cwd: string;
 
 async function readMemoryScope(scope: MemoryScope, cwd: string): Promise<MemoryRecord[]> {
   await initMemoryFiles(cwd);
-  const content = await fs.readFile(memoryFilePath(cwd, scope), "utf8");
+  const checked = await checkedStoragePath(cwd, path.relative(path.resolve(cwd), memoryFilePath(cwd, scope)), { kind: "file", private: true });
+  await checked.recheck();
+  const content = await fs.readFile(checked.filename, "utf8");
   return (JSON.parse(content) as MemoryRecord[]).map(normalizeStoredMemory);
 }
 
 async function writeMemoryScope(scope: MemoryScope, records: MemoryRecord[], cwd: string): Promise<void> {
   await initMemoryFiles(cwd);
-  await fs.writeFile(memoryFilePath(cwd, scope), JSON.stringify(records, null, 2), "utf8");
+  await writeOwnedFile(cwd, memoryFilePath(cwd, scope), JSON.stringify(records, null, 2));
 }
 
 async function readLessonMemory(cwd: string): Promise<MemoryRecord[]> {
   await initMemoryFiles(cwd);
-  const content = await fs.readFile(path.resolve(cwd, ATLAS_DIR, MEMORY_DIR, LESSONS_MEMORY_FILE), "utf8");
+  const checked = await checkedStoragePath(cwd, `.lmti/memory/${LESSONS_MEMORY_FILE}`, { kind: "file", private: true });
+  await checked.recheck();
+  const content = await fs.readFile(checked.filename, "utf8");
   return (JSON.parse(content) as MemoryRecord[]).map(normalizeStoredMemory);
 }
 
 async function writeLessonMemory(records: MemoryRecord[], cwd: string): Promise<void> {
   await initMemoryFiles(cwd);
-  await fs.writeFile(path.resolve(cwd, ATLAS_DIR, MEMORY_DIR, LESSONS_MEMORY_FILE), JSON.stringify(records, null, 2), "utf8");
+  await writeOwnedFile(cwd, path.resolve(cwd, ATLAS_DIR, MEMORY_DIR, LESSONS_MEMORY_FILE), JSON.stringify(records, null, 2));
 }
 
 function memoryFilePath(cwd: string, scope: MemoryScope): string {
@@ -1686,13 +1818,13 @@ function privacyContextForOptions(options: MemoryRuntimeOptions, overrides: Part
 async function appendMemoryEvent(cwd: string, event: Record<string, unknown>): Promise<void> {
   await initMemoryFiles(cwd);
   const line = JSON.stringify({ ...event, recordedAt: new Date().toISOString() });
-  await fs.appendFile(path.resolve(cwd, ATLAS_DIR, MEMORY_DIR, MEMORY_EVENTS_FILE), `${line}\n`, "utf8");
+  await writeOwnedFile(cwd, path.resolve(cwd, ATLAS_DIR, MEMORY_DIR, MEMORY_EVENTS_FILE), `${line}\n`, "append");
 }
 
 async function appendTaskEvent(cwd: string, event: TaskDoneEvent): Promise<void> {
   const eventsDir = path.resolve(cwd, ATLAS_DIR, EVENTS_DIR);
-  await fs.mkdir(eventsDir, { recursive: true });
-  await fs.appendFile(path.join(eventsDir, TASK_EVENTS_FILE), `${JSON.stringify(event)}\n`, "utf8");
+  await ensureMemoryDirectory(cwd, ".lmti/events");
+  await writeOwnedFile(cwd, path.join(eventsDir, TASK_EVENTS_FILE), `${JSON.stringify(event)}\n`, "append");
 }
 
 function intentTags(taskIntent?: InferredIntent): string[] {
@@ -1709,16 +1841,17 @@ function createRememberSuggestion(title: string, summary: string, tags: string[]
   return `Should this be proposed as a project lesson? Use lmti memory lesson propose --task "${safeTitle}" --summary "${safeSummary}" --lesson "<lesson>" --applies-to ${tagArg}`;
 }
 
-async function ensureJsonArray(filePath: string): Promise<void> {
-  await ensureFile(filePath, "[]");
+async function ensureJsonArray(cwd: string, filePath: string): Promise<void> {
+  await ensureFile(cwd, filePath, "[]");
 }
 
-async function ensureFile(filePath: string, content: string): Promise<void> {
-  try {
-    await fs.access(filePath);
-  } catch {
-    await fs.writeFile(filePath, content, "utf8");
-  }
+async function ensureFile(cwd: string, filePath: string, content: string): Promise<void> {
+  await writeOwnedFile(cwd, filePath, content, "ensure");
+}
+
+async function writeOwnedFile(cwd: string, filename: string, content: string,
+  mode: "replace" | "append" | "ensure" = "replace"): Promise<void> {
+  await writeMemoryFile(cwd, path.relative(path.resolve(cwd), filename), content, mode);
 }
 
 function validateMemory(record: MemoryRecord): void {
@@ -1946,9 +2079,9 @@ async function appendContextPrivacyAudit(
   }
 
   const logsDir = path.resolve(cwd, ATLAS_DIR, "logs");
-  await fs.mkdir(logsDir, { recursive: true });
-  await fs.appendFile(
-    path.join(logsDir, "privacy-audit.jsonl"),
+  await ensureMemoryDirectory(cwd, ".lmti/logs");
+  await writeOwnedFile(
+    cwd, path.join(logsDir, "privacy-audit.jsonl"),
     `${JSON.stringify({
       event: "memory.context_privacy",
       memoryId: memory.id,
@@ -1963,7 +2096,7 @@ async function appendContextPrivacyAudit(
       score,
       recordedAt: new Date().toISOString()
     })}\n`,
-    "utf8"
+    "append"
   );
 }
 
