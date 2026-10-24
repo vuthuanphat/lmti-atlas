@@ -5,6 +5,13 @@ type State={enabled:boolean;format?:number;entries?:{id:string;label:string;pinn
 type Preview={id:string;expiresAt:string;action:Action;projectId:string;label:string;sourcePreserved:true;requiresRelaunch:boolean};
 type Result={operationId:string;outcome:'pending'|'committed'|'unknown';requiresRelaunch?:boolean};
 export const libraryProjectIdPattern='[A-Za-z]([A-Za-z0-9._]|-)*';
+export function LibrarySavedNotice({requiresRelaunch,language}:{requiresRelaunch:boolean;language:'en'|'vi'}){
+  const t=(en:string,vi:string)=>language==='vi'?vi:en;
+  return <p className="notice success" role="status">{requiresRelaunch?
+    t('Saved. Changed project bindings require a launcher restart. To access newly registered projects, the operator must explicitly select their IDs with the local opener. O and page refresh keep the current scope.',
+      'Đã lưu. Đổi liên kết dự án cần khởi động lại launcher. Muốn truy cập dự án vừa đăng ký, operator phải chọn rõ ID của chúng bằng trình mở cục bộ. Nhấn O hoặc tải lại trang vẫn giữ phạm vi hiện tại.'):
+    t('Library metadata saved.','Đã lưu metadata thư viện.')}</p>;
+}
 export function LibraryManagementPanel({language,request,disabled,visible,onLockChange,onChanged}:{language:'en'|'vi';request:StructureRequest;disabled:boolean;visible:boolean;onLockChange:(v:boolean)=>void;onChanged:()=>void}){
   const t=(en:string,vi:string)=>language==='vi'?vi:en;
   const [state,setState]=useState<State|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
@@ -38,7 +45,7 @@ export function LibraryManagementPanel({language,request,disabled,visible,onLock
     <div className="section-heading"><h2 id="library-management-title">{t('Project library','Thư viện dự án')}</h2><button disabled={disabled||locked} onClick={()=>setRefresh(v=>v+1)}>{t('Refresh library','Tải lại thư viện')}</button></div>
     <p>{t('Create and register metadata, choose an approved folder, pin projects or remove a library reference. Source files are preserved.','Tạo và đăng ký metadata, chọn thư mục đã được cấp phép, ghim dự án hoặc gỡ tham chiếu thư viện. File nguồn được giữ nguyên.')}</p>
     {error&&<p className="notice error-notice" role="alert">{t('The owner refused the request or is unavailable. Refresh and review again. Existing libraries need an explicit upgrade before registration or link changes.','Owner từ chối hoặc chưa sẵn sàng. Tải lại và duyệt lại. Thư viện cũ cần nâng cấp tường minh trước khi đăng ký hay đổi liên kết.')} <code>{error}</code></p>}
-    {notice&&<p className="notice success" role="status">{notice==='relaunch'?t('Saved. Restart the launcher to use changed project bindings or grant newly registered projects. Refreshing cannot widen this session.','Đã lưu. Khởi động lại launcher để dùng liên kết mới hoặc cấp quyền cho dự án vừa đăng ký. Tải lại không mở rộng quyền phiên này.'):t('Library metadata saved.','Đã lưu metadata thư viện.')}</p>}
+    {notice&&<LibrarySavedNotice requiresRelaunch={notice==='relaunch'} language={language}/>}
     {unknown&&<p className="notice" role="alert">{t('Write outcome unknown. Do not repeat it. Use the recovery controls below to inspect the original library and target; staging artifacts are retained.','Chưa xác định kết quả ghi. Không gửi lại. Dùng phần phục hồi bên dưới để kiểm tra thư viện và đích gốc; artifact trung gian được giữ lại.')}</p>}
     {state?.enabled===false?<p className="notice">{t('Library management is not granted. Relaunch with a reviewed LibraryManagementFile. The browser cannot choose filesystem paths.','Chưa cấp quyền quản lý thư viện. Mở lại với LibraryManagementFile đã kiểm tra. Trình duyệt không chọn đường dẫn hệ thống.')}</p>:state?.enabled&&<>
       <p className="muted">{t('Library format','Định dạng thư viện')}: {state.format||t('new','mới')}. {t('Metadata only; no credentials.','Chỉ metadata, không lưu thông tin xác thực.')}</p>

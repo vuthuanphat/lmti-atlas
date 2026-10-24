@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { endLocalSession } from '../src/session-lifecycle.ts';
+import { checkServiceConnection, endLocalSession, sessionFailureReason } from '../src/session-lifecycle.ts';
 
 const visibleState = () => ({ session: 'ready', profile: { revision: 1 }, projects: ['fixture'], events: ['fixture-action'] });
 function cleanup(state, calls) {
@@ -44,4 +44,25 @@ test('one in-flight revocation is awaited without retry and cleans up on rejecti
   await observed;
   assert.deepEqual(calls, ['revoke', 'clear']);
   assert.deepEqual(state, ended);
+});
+
+test('startup transport failure, refused startup and authentication endings stay distinct', () => {
+  assert.equal(sessionFailureReason('NETWORK', true), 'startup_network');
+  assert.equal(sessionFailureReason('BUSY', true), 'startup_refused');
+  assert.equal(sessionFailureReason('SESSION_EXPIRED', true), 'expired');
+  assert.equal(sessionFailureReason('UNAUTHENTICATED', true), 'unauthenticated');
+  for (const code of ['NETWORK', 'OWNER_UNAVAILABLE', 'RECOVERY_REQUIRED', 'BUSY'])
+    assert.equal(sessionFailureReason(code), null, `${code} cannot end an active private session`);
+});
+
+test('manual connection check makes one fixed GET and does not settle caller write or recovery state', async () => {
+  for (const failure of [null, new Error('Synthetic connection failure')]) {
+    const calls = [], state = { bearerRetained: true, needsReload: true, unknown: true, locked: true, recoveryRequired: true };
+    const before = structuredClone(state);
+    const read = async (...args) => { calls.push(args); if (failure) throw failure; return { admitted: true, recoveryRequired: false }; };
+    if (failure) await assert.rejects(checkServiceConnection(read), error => error === failure);
+    else await checkServiceConnection(read);
+    assert.deepEqual(calls, [['/api/v1/write-status', 'GET']]);
+    assert.deepEqual(state, before);
+  }
 });

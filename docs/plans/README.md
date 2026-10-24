@@ -1,63 +1,46 @@
 # LMTI plan and evidence index
 
-**Current work:** [audit remediation](2026-10-23-audit-remediation.md) and
-[browser capability parity](../web-capabilities.md). The
+**Current work (2026-10-24):** [startup, setup and recovery readiness](2026-10-24-startup-readiness.md)
+after [core audit remediation](2026-10-23-audit-remediation.md). Use the
+[browser capability matrix](../web-capabilities.md) for implemented scope. The
 [browser-only ADR](../adr/2026-10-23-browser-only-ui.md) removes Qt desktop; old
 plans to retain it are superseded. Qt Core/Sql backend ownership remains.
 
-Updated 2026-10-14. The [master plan](../LMTI_MASTER_PLAN.md) is the only active
+The [master plan](../LMTI_MASTER_PLAN.md) is the active
 product-priority and milestone authority. Earlier stage IDs are historical;
 unfinished gates below become work only through the master backlog. No report
 or old plan independently authorizes another implementation branch.
 
-Current r6 continues the MVP build before live client/provider and independent
-operator acceptance, as the owner requested on 2026-10-14. Those acceptance
-gates still control release/cutover; they no longer block M2/M3 implementation.
-WEB-00 now has a synthetic
-browser study and contract; browser/owner UX review remains open. WEB-01 native
-façade/local API and WEB-02 React/package are implemented and tested through real
-owners. WEB-03 operator/client/cutover gates are deferred until the MVP is ready. Existing native/Python owners
-are retained. The first web
-slice uses a project MCP profile shared by Codex and Cursor, with
-project context, infrastructure and real read-only IoT remaining the broader
-Agent–project direction. CP-01 profile/owner ADR, adapters and UI are implemented
-locally; native-generated Codex read is checked. Actual Cursor/operator/provider
-acceptance is pending. Native
-M2 read remains implemented. Live-pilot choices, cross-source mapping, workload,
-model/operator and IoT acceptance remain open; r1–r4 priorities are historical.
+The owner requested implementation and full retesting, with **no merge to main
+or publication**. Clean Windows and independent operator acceptance remain open.
+Live clients/providers/IoT retain their separate acceptance gates; controlled
+replay is not live acceptance. Drive/OAuth and advanced Impact browser work are
+[deferred](2026-10-23-optional-integrations.md).
 
 ## Current planning annex
 
-[MVP build r6](2026-10-14-mvp-build-r6.md) records the owner's build-first
-instruction and the new opt-in Agent reference projection, with native/SDK/API
-checks. Cross-owner contents, integrated UI/proposals and observations remain
-build work; live/operator acceptance follows afterward.
-
-[WEB-03 continuation](2026-10-14-web-parity-execution.md) adds the packaged
-runtime/integrity doctor and real delayed/disconnected owner-write evidence.
-Cursor Editor is not installed; cutover/operator/provider gates remain open.
-It also records coordinated real Widgets/package API/React revision conflicts,
-cross-interface apply/restore and scoped C++/Qt regressions; full parity/history
-and independent operator acceptance remain open.
-The [locked local baseline](../benchmarks/2026-10-14-web-local-baseline.md) records
-500 synthetic projects and the owner metadata projection; performance/user
-acceptance thresholds and real-pilot gates remain open.
-The [Windows verification runner](2026-10-14-web-verification-runner.md) prepares
-the same selected package/runtime checks for local builds and CI; remote clean
-runner execution is not yet evidenced.
-The [Cursor CLI discovery record](2026-10-14-cursor-cli-discovery.md) now shows
-the official isolated client listing the four tools from the latest packaged
-web export. Cursor scoped reads/Editor acceptance remain open; Codex scoped reads
-were also rechecked against that package.
+The [current QA record](../releases/v0.2.0-alpha.1-qa.md) identifies the
+2026-10-23 baseline `771fc40`, including successful hosted CI. Later source edits
+require their own local/hosted verification; final merged/tag provenance is a
+future gate. Old test counts and claims that hosted CI had not yet run apply
+only to the dated records below.
 
 | File | Role |
 | --- | --- |
-| [Web UI transition](2026-10-13-web-ui-transition.md) | Owner selected local browser; WEB-00–02 implemented; operator/parity gates open |
-| [API/security contract](2026-10-13-web-ui-contract.md) | Typed DTOs, implemented WEB-01 route/preview/recovery/session semantics; browser/operator gates open |
-| [Project MCP profile](2026-10-13-project-mcp-profile.md) | Current CP-01 workflow and local implementation; actual Cursor/operator/providers open |
-| [M1 Agent layer packet](2026-10-13-agent-layer-m1.md) | Current contract/authority/profile design, prototype and acceptance cases; pilot gates open |
-| [Experience plan](2026-10-13-experience-plan.md) | Earlier connection prototype superseded by CP-01; retained structure/IoT/review reference, UX unaccepted |
-| [Impact evaluation](../impact-evaluation.md) | Retained protocol for the impact feature; not the gate for the whole product; old week labels are historical |
+| [Startup readiness](2026-10-24-startup-readiness.md) | Current setup, reopen, session/recovery UX and documentation work; no merge/publish |
+| [Audit remediation](2026-10-23-audit-remediation.md) | Implemented library/content scope and baseline checks |
+| [Local operator guide](../local-web.md) | Current package setup, launch grants, session lifetime and recovery steps |
+| [MVP build r6](2026-10-14-mvp-build-r6.md) | Dated build-first instruction and opt-in Agent reference projection |
+| [WEB-03 continuation](2026-10-14-web-parity-execution.md) | Historical delayed/disconnected writes and Qt/web coexistence evidence |
+| [Windows verification runner](2026-10-14-web-verification-runner.md) | Runner design and its original evidence; use current QA for later CI results |
+| [500-project baseline](../benchmarks/2026-10-14-web-local-baseline.md) | Synthetic performance baseline; not platform/user acceptance |
+| [Cursor discovery](2026-10-14-cursor-cli-discovery.md) | Historical actual CLI tool listing; not general Cursor/provider acceptance |
+| [Web UI transition](2026-10-13-web-ui-transition.md) | Original browser decision, superseded for retained Qt UI by browser-only ADR |
+| [API/security contract](2026-10-13-web-ui-contract.md) | Typed owner boundary and original route/preview/recovery/session contract |
+| [Project MCP profile](2026-10-13-project-mcp-profile.md) | Profile/client contract; actual-client acceptance remains distinct |
+| [M1 Agent layer packet](2026-10-13-agent-layer-m1.md) | Original authority/profile design and pilot cases |
+| [Experience plan](2026-10-13-experience-plan.md) | Earlier UX reference; does not certify operator acceptance |
+| [Impact evaluation](../impact-evaluation.md) | Separate feature protocol; old week labels are historical |
 
 ## Earlier scope and design records
 
@@ -107,10 +90,10 @@ replace the architecture or broaden data access.
 M1 additive design: [Agent–project layer](../adr/2026-10-13-agent-project-layer.md).
 Its integrated runtime/pilot acceptance is pending; it does not supersede these ADRs.
 
-Web presentation: [ADR and local implementation status](../adr/2026-10-13-web-presentation.md).
-Browser local is owner-selected and WEB-01 operator boundary is implemented;
-React presentation is implemented; default cutover remains gated. It changes the Qt-primary presentation only after parity;
-it does not supersede native schemas or Agent/storage contracts.
+Web presentation: [original ADR](../adr/2026-10-13-web-presentation.md) and
+[browser-only superseding decision](../adr/2026-10-23-browser-only-ui.md).
+React + Vite is the sole product UI. Retained Qt fallback/cutover requirements
+are historical; native schemas and Agent/storage contracts remain intact.
 
 - [Native topology](../adr/2026-10-11-native-topology.md)
 - [Project document](../adr/2026-10-11-project-document.md)

@@ -1,5 +1,11 @@
 # Web presentation over existing LMTI owners
 
+**UI migration status superseded on 2026-10-23:** the
+[browser-only ADR](2026-10-23-browser-only-ui.md) removes Qt desktop and its
+fallback launcher. The dated migration/parity language below is retained as
+history; it is not an instruction to launch or restore the removed UI. Native
+schemas, scoped owners and the local API security boundary still apply.
+
 Date: 2026-10-13. Status: **WEB-01 local operator boundary implemented following
 the owner's continuation request; WEB-02 React presentation implemented,
 WEB-03 default cutover still gated**.

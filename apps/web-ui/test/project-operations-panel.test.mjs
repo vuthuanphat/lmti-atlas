@@ -55,6 +55,57 @@ test('write status requires explicit bounded live-write count and actual boolean
   bad(()=>ui.checkedWriteStatus({admitted:true,recoveryRequired:true,projectOperations:true}));
   bad(()=>ui.checkedWriteStatus({...status,admitted:['true']}));
 });
+test('writer claim distinguishes all outcomes and refuses extra fields or truthy flag coercion',()=>{
+  for(const outcome of ['claimed','busy','unavailable'])for(const recoveryRequired of [false,true]){
+    const claim={outcome,recoveryRequired};assert.deepEqual(ui.checkedWriterClaim(claim),claim);
+  }
+  for(const value of [{outcome:'ready',recoveryRequired:false},{outcome:'busy',recoveryRequired:'false'},
+    {outcome:'claimed',recoveryRequired:false,admitted:true},{outcome:'claimed'}])bad(()=>ui.checkedWriterClaim(value));
+});
+test('explicit writer check performs one claim then one status read and never acknowledges or repeats writes',async()=>{
+  for(const outcome of ['claimed','busy','unavailable']){
+    const calls=[],observed=[],claim={outcome,recoveryRequired:true},status={admitted:outcome==='claimed',recoveryRequired:true,projectOperations:true,activeWrites:0};
+    const result=await ui.inspectWriterAdmission(async(path,method,body)=>{
+      calls.push([path,method,body]);return path.endsWith('write-claim')?claim:status;
+    },value=>observed.push(value));
+    assert.deepEqual(result,{claim,status});assert.deepEqual(observed,[claim]);
+    assert.deepEqual(calls,[['/api/v1/write-claim','POST',{}],['/api/v1/write-status','GET',undefined]]);
+    assert.equal(result.status.recoveryRequired,true);
+  }
+});
+test('failed status read retains claim and a conservative gate without inventing admission',async()=>{
+  for(const outcome of ['claimed','busy','unavailable']){
+    const original={admitted:false,recoveryRequired:false,projectOperations:true,activeWrites:1};
+    const observed={claim:null,status:original},calls=[],failure=new Error('Synthetic status read failure');
+    await assert.rejects(ui.inspectWriterAdmission(async(path,method)=>{
+      calls.push([path,method]);if(path.endsWith('write-status'))throw failure;return {outcome,recoveryRequired:true};
+    },claim=>{observed.claim=claim;observed.status=ui.retainWriterClaimStatus(observed.status,claim);}),error=>error===failure);
+    assert.deepEqual(observed.claim,{outcome,recoveryRequired:true});
+    assert.deepEqual(observed.status,{...original,recoveryRequired:true});
+    assert.equal(calls.length,2);
+    assert.deepEqual(original,{admitted:false,recoveryRequired:false,projectOperations:true,activeWrites:1});
+  }
+  const admitted={admitted:true,recoveryRequired:true,projectOperations:false,activeWrites:0};
+  assert.deepEqual(ui.retainWriterClaimStatus(admitted,{outcome:'busy',recoveryRequired:false}),{...admitted,admitted:false});
+  assert.equal(ui.retainWriterClaimStatus(null,{outcome:'claimed',recoveryRequired:false}),null);
+});
+test('a malformed claim cannot trigger status discovery or affect the caller gate',async()=>{
+  const calls=[];
+  await assert.rejects(ui.inspectWriterAdmission(async(path,method)=>{calls.push([path,method]);return {outcome:'claimed',recoveryRequired:'false'};},()=>assert.fail('Invalid claim must not be observed')),{code:'INVALID_SOURCE_RESPONSE'});
+  assert.deepEqual(calls,[['/api/v1/write-claim','POST']]);
+});
+test('EN/VI writer messages explain busy, unavailable and recovery without claiming the historical write succeeded',()=>{
+  for(const language of ['en','vi']){
+    const render=(outcome,recoveryRequired)=>renderToStaticMarkup(React.createElement(ui.WriterAdmissionNotice,{claim:{outcome,recoveryRequired},language}));
+    const busy=render('busy',true),unavailable=render('unavailable',true),claimed=render('claimed',true),ready=render('claimed',false);
+    assert.ok(busy.includes('Open-LMTI.cmd'));assert.ok(busy.includes('Q'));
+    assert.ok(busy.includes(language==='vi'?'Không xóa file khóa hoặc phục hồi.':'Do not delete lock or recovery files.'));
+    assert.ok(unavailable.includes(language==='vi'?'Chưa xác minh được điều phối ghi.':'Writer coordination could not be verified.'));
+    assert.ok(claimed.includes(language==='vi'?'Kết quả trước vẫn chưa rõ.':'The earlier outcome remains unknown.'));
+    assert.ok(ready.includes(language==='vi'?'tạo lượt duyệt mới trước khi ghi':'create a fresh review before writing'));
+    assert.notEqual(busy,unavailable);assert.notEqual(claimed,ready);
+  }
+});
 test('operation scope can select a granted removed project while a live or unknown pin cannot retarget',()=>{
   const scopes=ui.checkedOperationScopes({projectIds:[project,'removed-project'],allowLibraryUpgrade:true});
   assert.equal(ui.operationSelection('', 'removed-project',scopes,false,false),'removed-project');

@@ -1,6 +1,6 @@
-import { lazy, Suspense, useCallback, useEffect, useId, useRef, useState, type ReactNode, type FormEvent, type RefObject } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type FormEvent, type RefObject } from 'react';
 import type { ClientId, ClientPreviewDto, ClientStatusDto, CommitResultDto, ConnectionCheckDto, ManagedExportDto, McpServerDto, Page, ProfileDto, ProjectSummary } from '../../web-api/src/contracts';
-import { request, RequestError, signOut, subscribeSessionInvalidated } from './api';
+import { getServiceConnection, request, RequestError, signOut, subscribeServiceConnection, subscribeSessionInvalidated } from './api';
 import { StructureView } from './StructureView';
 import { ProjectOnboarding } from './ProjectOnboarding';
 import { WorkspaceOverview } from './WorkspaceOverview';
@@ -9,14 +9,17 @@ import { Icon } from './Icon';
 import { Brand } from './Brand';
 import { SectionTabs } from './SectionTabs';
 import { ProjectOperationsPanel } from './ProjectOperationsPanel';
-const ProjectContentPanel=lazy(()=>import('./ProjectContentPanel').then(module=>({default:module.ProjectContentPanel})));
-const LibraryManagementPanel=lazy(()=>import('./LibraryManagementPanel').then(module=>({default:module.LibraryManagementPanel})));
+// Core recovery/work views must remain renderable after the local server stops.
+// Load their code with the shell; mounting still waits until Work is visited.
+import { ProjectContentPanel } from './ProjectContentPanel';
+import { LibraryManagementPanel } from './LibraryManagementPanel';
 import { LogicalHierarchyPanel } from './LogicalHierarchyPanel';
 import { PhysicalHierarchyPanel } from './PhysicalHierarchyPanel';
 import { emptyChildLocks, hasChildLock, updateChildLock } from './ui-locks';
 import { translate, type Language } from './i18n';
 import { validateConnectionDraft, type ConnectionField } from './connection-editor';
-import { endLocalSession } from './session-lifecycle';
+import { checkServiceConnection, endLocalSession, sessionFailureReason, type SessionEndReason } from './session-lifecycle';
+import { ServiceConnectionBanner, SessionGuidance } from './SessionGuidance';
 
 type WorkspaceSection = 'overview' | 'work' | 'architecture' | 'knowledge' | 'agent';
 const workspaceSections: { id: WorkspaceSection; label: string }[] = [
@@ -100,6 +103,10 @@ function Editor({ server, t, busy, blocked, save }: { server?: McpServerDto; t: 
 export function App({ ready }: { ready: Promise<void> }) {
   const [language, setLanguage] = useState<Language>('en'); const t = (s: string) => translate(language, s);
   const [session, setSession] = useState<'loading' | 'ready' | 'ended'>('loading');
+  const [sessionEndReason, setSessionEndReason] = useState<SessionEndReason>('unauthenticated');
+  const [connection, setConnection] = useState(getServiceConnection);
+  const [checkingConnection, setCheckingConnection] = useState(false);
+  const connectionCheckActive = useRef(false);
   const [projects, setProjects] = useState<ProjectSummary[]>([]), [cursor, setCursor] = useState<string | null>(null);
   const [listLoaded, setListLoaded] = useState(false);
   const [project, setProject] = useState(''), [query, setQuery] = useState('');
@@ -121,8 +128,10 @@ export function App({ ready }: { ready: Promise<void> }) {
   const endpoint = (client: ClientId, action = '') => `/api/v1/projects/${project}/clients/${client}${action ? '/' + action : ''}`;
   const [childLocks,setChildLocks]=useState(emptyChildLocks);
   const [visited,setVisited]=useState({architecture:false,knowledge:false,work:false});
-  const clearLocalSession = useCallback(() => {
-    if (localSessionEnded.current || !mounted.current) return;
+  const clearLocalSession = useCallback((reason: SessionEndReason = 'unauthenticated') => {
+    if (!mounted.current) return;
+    if (localSessionEnded.current) { if (reason === 'signed_out') setSessionEndReason(reason); return; }
+    setSessionEndReason(reason);
     localSessionEnded.current = true;
     setSession('ended'); setProfile(null); setModal(null); setEvents([]);
     setProjects([]); setProject(''); setCursor(null); setListLoaded(false); setQuery('');
@@ -151,8 +160,8 @@ export function App({ ready }: { ready: Promise<void> }) {
   }
   function fail(e: unknown, writing = false) {
     if (e instanceof DOMException && e.name === 'AbortError') return;
-    if (e instanceof RequestError && ['SESSION_EXPIRED', 'UNAUTHENTICATED'].includes(e.code)) { clearLocalSession(); return; }
     if (localSessionEnded.current) return;
+    if (e instanceof RequestError && ['SESSION_EXPIRED', 'UNAUTHENTICATED'].includes(e.code)) { clearLocalSession(sessionFailureReason(e.code)!); return; }
     const code = e instanceof RequestError ? e.code : 'NETWORK';
     if (code === 'RECOVERY_REQUIRED' || code === 'REVISION_CONFLICT' || code === 'CONFIG_CHANGED' || (code === 'NETWORK' && writing)) setNeedsReload(true);
     setError(code === 'REVISION_CONFLICT' ? 'Profile changed elsewhere. Reload before editing again.' :
@@ -162,7 +171,8 @@ export function App({ ready }: { ready: Promise<void> }) {
       code === 'NOT_SUPPORTED' ? 'Remote checks are not supported. Sign in through the selected client.' :
       code === 'INVALID_INPUT' ? 'Invalid input. Check the server key, site or HTTPS endpoint.' :
       code === 'NETWORK' && writing ? 'The result is unknown. Refresh status before creating a new preview; do not repeat the write.' :
-      code === 'NETWORK' || code === 'OWNER_UNAVAILABLE' ? 'The local owner is unavailable. Check the package and retry a read.' : 'The operation was refused to protect existing configuration.');
+      code === 'NETWORK' ? 'The local service could not be reached. Use the connection guidance above; submitted writes are not repeated.' :
+      code === 'OWNER_UNAVAILABLE' ? 'The service is reachable, but the local owner is unavailable. Check the package and inspect current state again.' : 'The operation was refused to protect existing configuration.');
   }
   async function run(action: () => Promise<void>, writing = false) {
     if (locked.current) return; locked.current = true; setBusy(true); setError(''); setNotice('');
@@ -171,7 +181,8 @@ export function App({ ready }: { ready: Promise<void> }) {
   }
   function record(text: string, detail: string) { setEvents(v => [{ project, text, detail, time: new Date().toISOString() }, ...v].slice(0, 100)); }
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  useEffect(() => subscribeSessionInvalidated(clearLocalSession), [clearLocalSession]);
+  useEffect(() => subscribeSessionInvalidated(code => clearLocalSession(sessionFailureReason(code)!)), [clearLocalSession]);
+  useEffect(() => { const unsubscribe=subscribeServiceConnection(setConnection);setConnection(getServiceConnection());return unsubscribe; }, []);
   useEffect(() => { document.documentElement.lang = language; }, [language]);
   useEffect(() => { if (session !== 'ready') { setNavigationOpen(false); setProjectPicker(false); } }, [session]);
   useEffect(() => {
@@ -184,7 +195,7 @@ export function App({ ready }: { ready: Promise<void> }) {
     let booted = false;
     ready.then(() => { booted = true; return request<Page<ProjectSummary>>('/api/v1/projects?limit=50', 'GET', undefined, cancel.signal); })
       .then(page => { if (!cancel.signal.aborted && !localSessionEnded.current) { setProjects(page.items); setCursor(page.nextCursor); setProject(page.items[0]?.id ?? ''); setListLoaded(true); setSession('ready'); } })
-      .catch(e => { if (!cancel.signal.aborted) { fail(e); if (!booted) clearLocalSession(); else if (!localSessionEnded.current && !(e instanceof RequestError && ['SESSION_EXPIRED','UNAUTHENTICATED'].includes(e.code))) setSession('ready'); } });
+      .catch(e => { if (!cancel.signal.aborted) { if (!booted) clearLocalSession(sessionFailureReason(e instanceof RequestError ? e.code : 'NETWORK', true)!); else { fail(e); if (!localSessionEnded.current && !(e instanceof RequestError && ['SESSION_EXPIRED','UNAUTHENTICATED'].includes(e.code))) setSession('ready'); } } });
     return () => cancel.abort();
   }, [ready]);
   useEffect(() => {
@@ -262,10 +273,19 @@ export function App({ ready }: { ready: Promise<void> }) {
     }
   }
   function reload() { setModal(null); setError(''); setNotice(''); setNeedsReload(false); setRefresh(v => v + 1); }
+  async function checkConnection() {
+    if (connectionCheckActive.current || localSessionEnded.current) return;
+    connectionCheckActive.current = true; setCheckingConnection(true);
+    try {
+      await checkServiceConnection(request);
+      if (mounted.current && !localSessionEnded.current) setNotice('The service is reachable. Existing write and recovery barriers remain unchanged.');
+    } catch (e) { if (mounted.current) fail(e); }
+    finally { connectionCheckActive.current = false; if (mounted.current) setCheckingConnection(false); }
+  }
   const refreshButton = <button disabled={frozen} onClick={reload}>{t('Refresh')}</button>;
   const navigation = <nav aria-label={t('Workspace')}>{workspaceSections.map(({ id, label }) => <button key={id} className={`nav ${tab === id ? 'active' : ''}`} aria-current={tab === id ? 'page' : undefined} disabled={frozen || !!modal || session !== 'ready'} onClick={() => navigate(id)}><Icon name={id} /><span>{t(label)}</span></button>)}</nav>;
   const projectSwitcher = <button className="project-switcher" aria-haspopup="dialog" aria-label={`${t('Choose a project')}: ${selected?.name ?? t('No projects in session scope')}`} disabled={writeBlocked || !!modal || session !== 'ready'} onClick={() => { setNavigationOpen(false); setQuery(''); setProjectPicker(true); }}><Icon name="project" size={22} /><span>{selected?.name ?? t('Choose a project')}</span><span className="chevron" aria-hidden="true">⌄</span></button>;
-  const endSession = () => run(() => endLocalSession(signOut, clearLocalSession));
+  const endSession = () => run(() => endLocalSession(signOut, () => clearLocalSession('signed_out')));
   const filteredProjects = projects.filter(p => `${p.name} ${p.id}`.toLowerCase().includes(query.toLowerCase()));
   return <div className="app-shell workspace-shell">
     <a className="skip" href="#content">{t('Skip to content')}</a>
@@ -278,16 +298,17 @@ export function App({ ready }: { ready: Promise<void> }) {
       <div className="topbar-actions"><select aria-label={t('Language')} value={language} onChange={e => setLanguage(e.target.value as Language)}><option value="en">EN</option><option value="vi">VI</option></select>{session === 'ready' && <button className="topbar-end-session text-button" disabled={frozen || !!modal} onClick={endSession}>{t('End session')}</button>}</div>
     </header><div className="mobile-project">{projectSwitcher}</div>
       <main ref={contentRef} id="content" tabIndex={-1}>
-        {session === 'loading' ? <div className="session-loading" role="status"><Icon name="overview" size={32} /><span>{t('Loading…')}</span></div> : session === 'ended' ? <div className="empty"><h1>{t('Private session ended')}</h1><p>{t('Open LMTI again using the local launcher.')}</p><p>{t('If an operation was interrupted, inspect its status and recovery in Work before another change. Do not repeat the submitted operation.')}</p></div> : <>
+        {session === 'loading' ? <div className="session-loading" role="status"><Icon name="overview" size={32} /><span>{t('Loading…')}</span></div> : session === 'ended' ? <SessionGuidance reason={sessionEndReason} language={language} /> : <>
+          {connection === 'unreachable' && <ServiceConnectionBanner language={language} checking={checkingConnection} onCheck={() => void checkConnection()} />}
           {error && <div className="notice error-notice" role="alert">{t(error)} <button disabled={frozen} onClick={reload}>{t('Reload current profile')}</button></div>}
           {notice && <div className="notice success" role="status">{t(notice)}</div>}
           {job && <div className="notice" role="status">{t('Operation pending')} · {clientName(job.client)}<p>{t('Keep this page open while the owner completes the operation.')}</p><button disabled={busy} onClick={() => run(async () => { await checkJob(job); })}>{t('Check operation status')}</button></div>}
           {frozen && <p className="notice owner-lock-notice" role="status">{t('An operation is in progress. Project and navigation are locked until its outcome is inspected.')}</p>}
           {(visited.work||tab==='work')&&<div hidden={tab!=='work'}>
             <div className="page-heading workspace-section-heading"><div><p className="eyebrow">{t('PROJECT WORKSPACE')}</p><h1>{t('Work')}</h1><p className="subtitle">{t('Review project operations and recover interrupted changes.')}</p></div></div>
-            <Suspense fallback={<p role="status">{t('Loading…')}</p>}><LibraryManagementPanel language={language} request={request} onLockChange={lockLibrary} onChanged={changed} visible={tab==='work'} disabled={busy||!!job||hasChildLock(childLocks,'library')} /></Suspense>
+            <LibraryManagementPanel language={language} request={request} onLockChange={lockLibrary} onChanged={changed} visible={tab==='work'} disabled={busy||!!job||hasChildLock(childLocks,'library')} />
             <ProjectOperationsPanel project={project} language={language} onLockChange={lockOperations} onChanged={changed} refreshKey={refresh} disabled={busy||!!job||hasChildLock(childLocks,'operations')} />
-            <Suspense fallback={<p role="status">{t('Loading…')}</p>}><ProjectContentPanel key={project} project={project} language={language} request={request} onLockChange={lockContent} onChanged={changed} onRecovery={openRecovery} visible={tab==='work'} disabled={busy||!!job||hasChildLock(childLocks,'content')} /></Suspense>
+            <ProjectContentPanel key={project} project={project} language={language} request={request} onLockChange={lockContent} onChanged={changed} onRecovery={openRecovery} visible={tab==='work'} disabled={busy||!!job||hasChildLock(childLocks,'content')} />
             <section className="workspace-session section" aria-labelledby="session-activity"><div className="section-heading"><h2 id="session-activity">{t('Session activity')}</h2><span className="pill neutral">{t('This browser session')}</span></div>
               <p className="subtitle">{t('Only actions from this browser session appear here. Agent tool calls are not audited here.')}</p>
               <div className="timeline">{events.filter(e => e.project === project).map((event, i) => <article className="timeline-item" key={i}><h3>{t(event.text)}</h3><p>{event.detail} · <time dateTime={event.time}>{new Date(event.time).toLocaleTimeString(language === 'vi' ? 'vi-VN' : 'en-GB')}</time></p></article>)}{!events.some(e => e.project === project) && <p className="muted">{t('No activity in this session.')}</p>}</div>

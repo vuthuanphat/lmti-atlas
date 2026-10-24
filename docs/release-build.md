@@ -40,6 +40,14 @@ Record skipped tests and run platform-specific cases on their target platform.
 The [development guide](development.md) and [package verifier](../scripts/verify-local-web.ps1)
 document entry points. Use package mirrors for tests that may generate caches.
 
+For startup/readiness changes, exercise the actual Windows PowerShell 5 setup
+and saved-workspace opener from a fresh extracted package. Cover demo/empty,
+review cancellation, existing/linked/path refusals, profile/grant/package changes,
+Unicode paths, fresh-tab O, graceful Q/EOF and retained writer/recovery gates.
+Run package doctor, tests and a real-browser journey on the changed payload;
+green CI for baseline `771fc40` is historical evidence, not the next build's result.
+Clean-Windows installation and independent operator acceptance remain separate.
+
 ## Distribution contents
 
 Create the source archive from the reviewed commit. Include the built Windows

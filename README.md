@@ -15,8 +15,9 @@ x64 remains the packaging target for the local backend and browser launcher.
 
 `v0.2.0-alpha.1` is a local release candidate. See the
 [release notes](docs/releases/v0.2.0-alpha.1.md) for changes, compatibility and
-open acceptance gates. Hosted CI status belongs to the public branch, not this
-unpublished candidate. Public alpha APIs and storage contracts can change.
+open acceptance gates. The badge shows `main`; candidate validation is recorded
+by commit in the QA record. The current owner instruction holds merge and
+publication while startup/readiness work is tested. Alpha APIs and storage contracts can change.
 
 [Build from source](#build-from-source) ·
 [Windows setup](docs/local-web.md) ·
@@ -65,21 +66,37 @@ Use the prepared Windows x64 ZIP from a trusted source. Verify `SHA256SUMS.txt`
 and extract into a new local directory. Node.js 24+ x64, Python 3.11+ x64 and the
 compatible Microsoft C++ runtime are prerequisites; Node/Python are not bundled.
 
+Double-click **`LMTI.cmd` in the extracted package** for first setup, or run:
+
 ```powershell
-& .\scripts\test-local-web-package.ps1
-& .\scripts\start-local-web.ps1 -DataDirectory 'C:\path\to\studio-data'
+& .\scripts\setup-local-web.ps1
 ```
 
-The data directory must contain a Studio library and registered projects. Use
-the [local operator setup commands](docs/local-web.md#khởi-tạo-dự-án-không-cần-desktop)
-to create/register a project without a desktop application.
-The launcher opens the browser with a one-use code. Keep launch URLs and tokens
-private. Do not open `index.html` directly. The service binds `127.0.0.1` and
-must not be exposed through LAN, tunnels or port forwarding.
+Choose a **new local workspace folder**, then a demo or empty project. Review
+the displayed grants and type `CREATE` to proceed. Setup runs package/runtime
+checks first, creates a separate project/library and opens the browser. Existing
+workspace folders are refused; no dependency installation or schema upgrade runs
+automatically. Use the [advanced operator commands](docs/local-web.md#khởi-tạo-dự-án-không-cần-desktop)
+for existing projects.
+Setup grants four fresh source folders by default: the initial project's folder
+and three unused folders for later projects. Creating another project requires
+the separately reviewed library upgrade and an unused approved source folder;
+these folders do not grant access to a real repository.
+
+To reopen, double-click **`Open-LMTI.cmd` inside your workspace**. Keep its
+operator console open: enter **O** for a fresh private tab, or **Q** to drain
+accepted writes and stop. An old bookmark, port or refreshed tab cannot create
+a new authenticated session. Keep launch URLs private; do not open `index.html`
+directly. The service binds `127.0.0.1` and must not be exposed through LAN,
+tunnels or port forwarding. See [startup and recovery help](docs/local-web.md#khi-không-mở-được-hoặc-không-ghi-được).
+Newly registered project IDs require an explicit selection through the local
+opener; O and the saved default launcher keep the original scope.
 
 Start with a disposable sample project. Keep backups before trying existing
 data. Public downloads will be linked here after the release acceptance gates
 are complete; a release candidate is not a published download.
+Use the [operator acceptance procedure](docs/operator-acceptance.md) to record
+human results separately from automated checks.
 
 See [local web setup and scope grants](docs/local-web.md),
 [project MCP configuration](docs/project-mcp.md),

@@ -5,17 +5,32 @@ export class RequestError extends Error {
 }
 // Capability stays in this module's closure; never persisted, logged or sent to agents.
 let bearer: string | undefined;
-const sessionInvalidated = new Set<() => void>();
-export function subscribeSessionInvalidated(listener: () => void): () => void {
+type AuthenticationFailure = 'UNAUTHENTICATED' | 'SESSION_EXPIRED';
+export type ServiceConnection = 'unknown' | 'reachable' | 'unreachable';
+let serviceConnection: ServiceConnection = 'unknown';
+const connectionListeners = new Set<(state: ServiceConnection) => void>();
+export const getServiceConnection = () => serviceConnection;
+export function subscribeServiceConnection(listener: (state: ServiceConnection) => void): () => void {
+  connectionListeners.add(listener);
+  return () => { connectionListeners.delete(listener); };
+}
+function connectionChanged(state: ServiceConnection) {
+  serviceConnection = state;
+  for (const listener of [...connectionListeners]) {
+    try { listener(state); } catch { /* Presentation cannot change request semantics. */ }
+  }
+}
+const sessionInvalidated = new Set<(code: AuthenticationFailure) => void>();
+export function subscribeSessionInvalidated(listener: (code: AuthenticationFailure) => void): () => void {
   sessionInvalidated.add(listener);
   return () => { sessionInvalidated.delete(listener); };
 }
-function invalidateSession() {
+function invalidateSession(code: AuthenticationFailure) {
   bearer = undefined;
   // Notify synchronously before a panel can catch the rejected request locally.
   // One observer must not prevent other cleanup or replace the API error.
   for (const listener of [...sessionInvalidated]) {
-    try { listener(); } catch { /* The original authentication error remains authoritative. */ }
+    try { listener(code); } catch { /* The original authentication error remains authoritative. */ }
   }
 }
 export async function request<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal): Promise<T> {
@@ -28,13 +43,15 @@ export async function request<T>(path: string, method = 'GET', body?: unknown, s
       body: body === undefined ? undefined : JSON.stringify(body) });
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') throw e;
+    connectionChanged('unreachable');
     throw new RequestError('NETWORK', 'The local service could not be reached.');
   }
   let result: ApiResult<T>;
-  try { result = await response.json(); } catch { throw new RequestError('NETWORK', 'The local service response could not be read.'); }
-  if (result.apiVersion !== 1) throw new RequestError('NETWORK', 'Unsupported service response.');
+  try { result = await response.json(); } catch { connectionChanged('unreachable'); throw new RequestError('NETWORK', 'The local service response could not be read.'); }
+  if (!result || result.apiVersion !== 1) { connectionChanged('unreachable'); throw new RequestError('NETWORK', 'Unsupported service response.'); }
+  connectionChanged('reachable');
   if (!result.ok) {
-    if (result.error.code === 'UNAUTHENTICATED' || result.error.code === 'SESSION_EXPIRED') invalidateSession();
+    if (result.error.code === 'UNAUTHENTICATED' || result.error.code === 'SESSION_EXPIRED') invalidateSession(result.error.code);
     throw new RequestError(result.error.code, result.error.message);
   }
   return result.data;

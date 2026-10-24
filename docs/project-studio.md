@@ -1,16 +1,19 @@
 # Projects, software and work
 
-Current scope: 2026-10-23. React + Vite is the sole UI. Open the local browser
+Current scope: 2026-10-24. React + Vite is the sole UI. Open the local browser
 package using the [launcher guide](local-web.md). Qt Core/Sql remains a native
 storage dependency; there is no Qt desktop executable or fallback launcher.
 
 ## Set up the local library
 
 The launcher selects a local library and freezes the session's project scope.
-Use the [operator setup commands](local-web.md#khởi-tạo-dự-án-không-cần-desktop)
-to initialize/register a project, then restart the launcher. A browser refresh
-does not grant a newly registered project. Existing libraries are preserved;
-schema upgrades require the separate reviewed maintenance workflow.
+Use the [fresh-workspace setup](local-web.md#thiết-lập-workspace-mới), or the
+[advanced operator commands](local-web.md#khởi-tạo-dự-án-không-cần-desktop) for
+existing data. A browser refresh, O or restart of the saved default opener keeps
+the original IDs. Select newly registered IDs explicitly through the
+[local opener](library-management.md#open-a-newly-registered-project); content
+editing requires its separate grant. Existing libraries are preserved; schema
+upgrades require the separate reviewed maintenance workflow.
 
 The empty-library screen explains setup in English and Vietnamese. A failed
 owner read has a different screen and never claims that existing data is empty.
@@ -25,7 +28,7 @@ reference is distinct from deleting a project or its source folder.
 Grant editing explicitly when starting the current package:
 
 ```powershell
-& .\scripts\start-local-web.ps1 -DataDirectory 'C:\path\to\studio-data' -ProjectId factory-monitor -ProjectContent -ContentProjectId factory-monitor
+& .\scripts\start-local-web.ps1 -DataDirectory 'C:\path\to\studio-data' -ProjectId factory-monitor -ProjectContent -ContentProjectId factory-monitor -Interactive
 ```
 
 Open **Work → Project content**. Choose a category, add/edit/remove a record,

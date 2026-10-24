@@ -60,3 +60,21 @@ test('idle shutdown clears its interval and closes once', async t => {
   assert.equal(closes, 1);
   assert.equal(checks, 1);
 });
+
+test('a signal during startup drains accepted work and refuses readiness', async () => {
+  const before=handlers();
+  let finishOpen,finishClose,enteredOpen,enteredClose,closes=0;
+  const opening=new Promise(resolve=>{finishOpen=resolve;});
+  const closing=new Promise(resolve=>{finishClose=resolve;});
+  const openEntered=new Promise(resolve=>{enteredOpen=resolve;});
+  const closeEntered=new Promise(resolve=>{enteredClose=resolve;});
+  let completed=false;
+  const result=startApiLifecycle({isIdle:()=>false,close:async()=>{closes++;enteredClose();await closing;}},
+    async()=>{enteredOpen();await opening;},{operatorControlled:true});
+  const rejected=assert.rejects(result,/startup was interrupted/).then(()=>{completed=true;});
+  await openEntered;process.emit('SIGTERM');await closeEntered;
+  finishOpen();await Promise.resolve();assert.equal(completed,false);
+  assert.equal(closes,1);assert.deepEqual(handlers(),before.map(count=>count+1));
+  finishClose();await rejected;
+  assert.equal(closes,1);assert.deepEqual(handlers(),before);
+});

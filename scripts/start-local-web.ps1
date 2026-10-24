@@ -20,9 +20,11 @@ param(
     [switch]$PhysicalHierarchy,
     [string[]]$PhysicalHierarchyProjectId = @(),
     [string[]]$PhysicalHierarchyInternalProjectId = @(),
-    [switch]$NoBrowser
+    [switch]$NoBrowser,
+    [switch]$Interactive
 )
 $ErrorActionPreference = 'Stop'
+if ($Interactive -and $NoBrowser) { throw 'Interactive launch opens private browser sessions. Use NoBrowser only for a noninteractive startup check.' }
 foreach ($taskLocation in @($DataDirectory,$PackageDirectory,$IntegrationConfig,$CopyParent,$BackupParent,$LibraryManagementFile)) {
     if ($taskLocation.Length -gt 1024 -or $taskLocation -match '[\x00-\x1f\x7f<>"|?*]' -or $taskLocation.Replace('\','/').StartsWith('//')) { throw 'Use local Studio data and package directories; network/device paths are refused before filesystem access.' }
     $taskWithoutDrive = $taskLocation -replace '^[A-Za-z]:[\\/]', ''
@@ -242,12 +244,64 @@ if ($AgentSite) {
 $taskInput = $taskConfig | ConvertTo-Json -Compress -Depth 8
 # Include the one LF written below. Refuse before starting a broker, not after it.
 if ([Text.Encoding]::UTF8.GetByteCount($taskInput) + 1 -gt 16384) { throw 'Trusted launch configuration exceeds the 16 KiB input limit.' }
-$taskProcess = New-OwnerProcess $taskNode @($taskMain)
-Send-OwnerJson $taskProcess $taskInput
-$taskLaunchRead = $taskProcess.StandardOutput.ReadLineAsync()
-if (-not $taskLaunchRead.Wait(10000)) { throw 'Local API startup timed out. No anonymous access was enabled.' }
-$taskLaunchLine = $taskLaunchRead.GetAwaiter().GetResult()
-if (-not $taskLaunchLine) { throw 'Local API could not start. Check the package and selected data directory.' }
-$taskInfo = $taskLaunchLine | ConvertFrom-Json
-if ($taskInfo.kind -ne 'lmti-local-api') { throw 'Unexpected launcher response.' }
-$taskInfo
+$taskArguments=@($taskMain)
+if ($Interactive) { $taskArguments+='--operator-control' }
+$taskProcess = New-OwnerProcess $taskNode $taskArguments
+$taskErrorsRead=$taskProcess.StandardError.ReadToEndAsync()
+$taskControlWriter=$null
+try {
+    if ($Interactive) {
+        $taskControlWriter=[IO.StreamWriter]::new($taskProcess.StandardInput.BaseStream,[Text.UTF8Encoding]::new($false))
+        $taskControlWriter.NewLine="`n"
+        $taskControlWriter.WriteLine($taskInput);$taskControlWriter.Flush()
+    } else { Send-OwnerJson $taskProcess $taskInput }
+    $taskLaunchRead = $taskProcess.StandardOutput.ReadLineAsync()
+    if (-not $taskLaunchRead.Wait(10000)) { throw 'Local API startup timed out. No anonymous access was enabled. Keep original workspace settings when inspecting recovery.' }
+    $taskLaunchLine = $taskLaunchRead.GetAwaiter().GetResult()
+    if (-not $taskLaunchLine) {
+        $taskCode='STARTUP_FAILED'
+        if($taskErrorsRead.Wait(1000)) {
+            $taskMatch=[regex]::Match($taskErrorsRead.GetAwaiter().GetResult(),'\ALMTI_STARTUP (PORT_IN_USE|PORT_UNAVAILABLE|BROWSER_UNAVAILABLE|INVALID_OPERATOR_INPUT|OWNER_UNAVAILABLE|SCOPE_DENIED|CONFIG_CHANGED|INVALID_INPUT|STARTUP_FAILED)\.')
+            if($taskMatch.Success){$taskCode=$taskMatch.Groups[1].Value}
+        }
+        $taskHelp=switch($taskCode) {
+            'PORT_IN_USE' {'The selected port is already in use. Close the previous workspace with Q, wait for accepted writes, then reopen. Do not terminate a writer.'}
+            'BROWSER_UNAVAILABLE' {'The browser could not be opened. Check the default browser, then reopen the saved workspace launcher.'}
+            'OWNER_UNAVAILABLE' {'The native owner or workspace is unavailable. Check package integrity and original data locations; do not initialize over existing data.'}
+            'SCOPE_DENIED' {'The saved workspace scope was refused. Review the original local grants; do not widen them to bypass recovery.'}
+            default {'Check package doctor, trusted runtimes and the original workspace profile. No anonymous access was enabled.'}
+        }
+        throw ('LMTI '+$taskCode+': '+$taskHelp)
+    }
+    $taskInfo = $taskLaunchLine | ConvertFrom-Json
+    if ($taskInfo.kind -ne 'lmti-local-api' -or $taskInfo.version -ne 1) { throw 'Unexpected launcher response.' }
+    if (-not $Interactive) { $taskInfo; return }
+    Write-Host 'LMTI is running / LMTI dang chay.'
+    Write-Host 'Keep this console open. O opens a fresh private tab; Q waits for accepted writes and stops.'
+    Write-Host 'Giu cua so nay. O mo phien moi; Q doi thao tac da nhan hoan tat roi dung.'
+    Write-Host 'An older tab or copied address cannot reopen a private session. Review recovery in Work before another write.'
+    while (-not $taskProcess.HasExited) {
+        $taskChoice=(Read-Host 'O = Open / Mo | Q = Stop / Dung').Trim().ToUpperInvariant()
+        if($taskChoice -notin @('O','Q')) { Write-Host 'Choose O or Q / Chon O hoac Q.';continue }
+        $taskAction=if($taskChoice -eq 'O'){'open'}else{'stop'}
+        if($taskChoice -eq 'Q'){Write-Host 'Waiting for accepted work to close safely / Dang doi thao tac hoan tat...'}
+        $taskControlWriter.WriteLine((@{action=$taskAction}|ConvertTo-Json -Compress));$taskControlWriter.Flush()
+        $taskReplyRead=$taskProcess.StandardOutput.ReadLineAsync()
+        if($taskChoice -eq 'O' -and -not $taskReplyRead.Wait(10000)){throw 'Browser opening was not confirmed. Stop this console safely and reopen the saved workspace; do not repeat an uncertain write.'}
+        $taskReplyLine=$taskReplyRead.GetAwaiter().GetResult()
+        if(-not $taskReplyLine){throw 'The local service ended. Reopen the saved workspace and inspect recovery before another write.'}
+        $taskReply=$taskReplyLine|ConvertFrom-Json
+        if($taskReply.kind -ne 'lmti-operator-control' -or $taskReply.version -ne 1 -or $taskReply.action -ne $taskAction){throw 'Unexpected local operator response.'}
+        if(-not $taskReply.ok){
+            if($taskReply.code -eq 'SESSION_LIMIT'){Write-Host 'Too many open sessions. End an older tab session, then press O again.'}
+            else{Write-Host 'The browser could not be opened. Check your default browser, then use the saved launcher again.'}
+        }
+        if($taskChoice -eq 'Q'){break}
+    }
+} finally {
+    if($taskControlWriter){
+        # EOF is a graceful shutdown request. Never kill accepted native work.
+        $taskControlWriter.Dispose()
+        $taskProcess.WaitForExit()
+    }
+}

@@ -19,6 +19,7 @@ type Result = {operationId:string;action:Action;outcome:'pending'|'confirmed'|'r
 type Job = {operationId:string;state:'pending'|'succeeded'|'failed'|'unknown';result:Result|null;errorCode:string|null};
 type Scopes = {projectIds:string[];allowLibraryUpgrade:boolean};
 type WriteStatus = {recoveryRequired:boolean;admitted:boolean;projectOperations:boolean;activeWrites:number};
+export type WriterClaim = {outcome:'claimed'|'busy'|'unavailable';recoveryRequired:boolean};
 type ProjectStatus = {projectId:string;projectSchema:1|2;projectRevision:number;librarySchema:1|2|3;capabilities:{copyModes:CopyMode[];activation:boolean};recoveryRequired:boolean};
 type LibraryStatus = {librarySchema:1|2|3;canUpgrade:boolean;recoveryRequired:boolean};
 type RecoveryItem = {handle:string;kind:'copy'|'activation';state:string;revision:number|null};
@@ -66,6 +67,37 @@ export function checkedWriteStatus(v:unknown):WriteStatus {
   const o=exact(v,['recoveryRequired','admitted','projectOperations','activeWrites']);
   check(boolean(o.recoveryRequired)&&boolean(o.admitted)&&boolean(o.projectOperations)&&revision(o.activeWrites)&&o.activeWrites<=32);
   return o as unknown as WriteStatus;
+}
+export function checkedWriterClaim(v:unknown):WriterClaim {
+  const o=exact(v,['outcome','recoveryRequired']);
+  check(member(o.outcome,['claimed','busy','unavailable'])&&boolean(o.recoveryRequired));
+  return o as unknown as WriterClaim;
+}
+export function retainWriterClaimStatus(previous:WriteStatus|null,claim:WriterClaim):WriteStatus|null {
+  // Admission is enabled only by a separately validated current status read.
+  // A failed status read must not discard an already observed recovery barrier.
+  return previous?{...previous,admitted:false,recoveryRequired:previous.recoveryRequired||claim.recoveryRequired}:null;
+}
+export async function inspectWriterAdmission(send:(path:string,method?:string,body?:unknown,signal?:AbortSignal)=>Promise<unknown>,
+  observeClaim:(claim:WriterClaim)=>void,signal?:AbortSignal):Promise<{claim:WriterClaim;status:WriteStatus}> {
+  const claim=checkedWriterClaim(await send('/api/v1/write-claim','POST',{},signal));
+  observeClaim(claim);
+  const status=checkedWriteStatus(await send('/api/v1/write-status','GET',undefined,signal));
+  return {claim,status};
+}
+export function WriterAdmissionNotice({claim,language}:{claim:WriterClaim;language:'en'|'vi'}) {
+  const t=(en:string,vi:string)=>language==='vi'?vi:en;
+  return <p className="notice" role="status">{claim.outcome==='busy'?
+    t('Another workspace or writer still holds admission. In its Open-LMTI.cmd console, use Q to stop it gracefully, wait for accepted writes to finish, then check again. Do not delete lock or recovery files.',
+      'Workspace hoặc writer khác vẫn giữ quyền. Trong cửa sổ Open-LMTI.cmd của phiên đó, dùng Q để dừng an toàn, chờ thao tác ghi đã nhận hoàn tất rồi kiểm tra lại. Không xóa file khóa hoặc phục hồi.'):
+    claim.outcome==='unavailable'?
+    t('Writer coordination could not be verified. Check the operator console and package, then inspect current state again. No write was started.',
+      'Chưa xác minh được điều phối ghi. Kiểm tra cửa sổ vận hành và gói ứng dụng rồi kiểm tra lại trạng thái hiện tại. Chưa khởi chạy thao tác ghi.'):
+    claim.recoveryRequired?
+    t('Writer admission was obtained. Review the retained recovery evidence and acknowledge it separately before creating a new change preview. The earlier outcome remains unknown.',
+      'Đã nhận quyền điều phối ghi. Duyệt bằng chứng phục hồi được giữ lại và xác nhận riêng trước khi tạo bản xem trước thay đổi mới. Kết quả trước vẫn chưa rõ.'):
+    t('Writer admission checked. Inspect current state and create a fresh review before writing.',
+      'Đã kiểm tra quyền bắt đầu ghi. Kiểm tra trạng thái hiện tại và tạo lượt duyệt mới trước khi ghi.')}</p>;
 }
 export function checkedOperationStatus(v:unknown,project:string|null):ProjectStatus|LibraryStatus {
   if(project===null) {
@@ -284,6 +316,7 @@ export function ProjectOperationsPanel({project,language,onLockChange,onChanged,
   const hierarchyEnabled=recoveryCapabilities===null?null:recoveryCapabilities.logical||recoveryCapabilities.physical||recoveryCapabilities.library;
   const lastRefresh=useRef(refreshKey);
   const [scopes,setScopes]=useState<Scopes|null>(null),[write,setWrite]=useState<WriteStatus|null>(null);
+  const [writerClaim,setWriterClaim]=useState<WriterClaim|null>(null);
   const [status,setStatus]=useState<ProjectStatus|null>(null),[library,setLibrary]=useState<LibraryStatus|null>(null);
   const [preview,setPreview]=useState<Preview|null>(null),[recoveryReview,setRecoveryReview]=useState<RecoveryReview|null>(null);
   const [copies,setCopies]=useState<RecoveryPage|null>(null),[activations,setActivations]=useState<RecoveryPage|null>(null),[recovery,setRecovery]=useState<RecoveryView|null>(null);
@@ -309,7 +342,7 @@ export function ProjectOperationsPanel({project,language,onLockChange,onChanged,
   async function refresh() {
     const p=selected.current;
     await readTask(async(signal,accept)=>{
-      accept(()=>{setPreview(null);setStatus(null);setLibrary(null);setScopes(null);setRecoveryCapabilities(null);setRecoveryReview(null);setIdleObserved(false);});
+      accept(()=>{setPreview(null);setStatus(null);setLibrary(null);setScopes(null);setRecoveryCapabilities(null);setRecoveryReview(null);setIdleObserved(false);setWriterClaim(null);});
       const w=checkedWriteStatus(await request('/api/v1/write-status','GET',undefined,signal));
       accept(()=>{setWrite(w);setIdleObserved(w.admitted&&w.activeWrites===0);});
       const capabilities=await discoverRecoveryCapabilities(request,signal);
@@ -335,7 +368,7 @@ export function ProjectOperationsPanel({project,language,onLockChange,onChanged,
     if(lockedRef.current||initialized.current&&lastMainProject.current===project)return;
     initialized.current=true;lastMainProject.current=project;
     clearRead();selected.current=project;setSelectedProject(project);busyRef.current=false;setBusy(false);
-    setScopes(null);setStatus(null);setLibrary(null);setPreview(null);setCopies(null);setActivations(null);setRecovery(null);setRecoveryReview(null);setError('');setNotice('');
+    setScopes(null);setStatus(null);setLibrary(null);setPreview(null);setCopies(null);setActivations(null);setRecovery(null);setRecoveryReview(null);setError('');setNotice('');setWriterClaim(null);
     // A read is the only automatic request. No claim, preview or write is replayed.
     void refresh();
   },[project,locked]);
@@ -351,7 +384,7 @@ export function ProjectOperationsPanel({project,language,onLockChange,onChanged,
     if(chosen===selected.current)return;
     clearRead();selected.current=chosen;setSelectedProject(chosen);
     setStatus(null);setLibrary(null);setPreview(null);setCopies(null);setActivations(null);setRecovery(null);setRecoveryReview(null);
-    setError('');setNotice('');setIdleObserved(false);
+    setError('');setNotice('');setIdleObserved(false);setWriterClaim(null);
     void refresh();
   }
   useEffect(()=>{
@@ -445,9 +478,11 @@ export function ProjectOperationsPanel({project,language,onLockChange,onChanged,
   async function claim() {
     if(disabled)return;
     await readTask(async(signal,accept)=>{
-      const o=exact(await request('/api/v1/write-claim','POST',{},signal),['outcome','recoveryRequired']);
-      check(member(o.outcome,['claimed','busy','unavailable'])&&boolean(o.recoveryRequired));
-      accept(()=>{setWrite(null);setNotice(o.outcome==='claimed'?'claimed':'claim_unavailable');});
+      accept(()=>{setNotice('');setWriterClaim(null);});
+      const {claim:result,status:current}=await inspectWriterAdmission(request,result=>accept(()=>{
+        setWriterClaim(result);setWrite(previous=>retainWriterClaimStatus(previous,result));setIdleObserved(false);
+      }),signal);
+      accept(()=>{setWrite(current);setIdleObserved(current.admitted&&current.activeWrites===0);setWriterClaim({...result,recoveryRequired:current.recoveryRequired});});
     });
   }
   function endLocalReview() {
@@ -504,9 +539,8 @@ export function ProjectOperationsPanel({project,language,onLockChange,onChanged,
     {locked&&<p className="notice operations-panel__warning" role="status">{t('This operation is pinned to','Thao tác này đang gắn với')} <strong>{submission?.project??t('the library','thư viện')}</strong>. {t('Keep this page open until its result is inspected.','Giữ trang này mở cho đến khi kiểm tra được kết quả.')}</p>}
     {notice&&<p className="notice" role="status">{notice==='rejected'?t('Preview rejected. No write was submitted.','Đã từ chối bản xem trước. Chưa gửi thao tác ghi.'):
       notice==='reconciled'?t('Current state acknowledged. The prior outcome remains unknown. Inspect again and create a separate fresh review before writing.','Đã xác nhận trạng thái hiện tại. Kết quả trước vẫn chưa rõ. Kiểm tra lại và tạo lượt duyệt mới riêng trước khi ghi.'):
-      notice==='claimed'?t('Writer admission checked. Inspect current state before continuing.','Đã kiểm tra quyền bắt đầu ghi. Kiểm tra trạng thái hiện tại trước khi tiếp tục.'):
-      notice==='claim_unavailable'?t('Writer admission is still unavailable. No write was started.','Vẫn chưa được phép bắt đầu ghi. Chưa khởi chạy thao tác ghi.'):
       t('The earlier outcome remains unknown. Ending this local review does not clear the service recovery barrier.','Kết quả trước vẫn chưa rõ. Kết thúc lượt duyệt cục bộ không xóa yêu cầu phục hồi của dịch vụ.')}</p>}
+    {writerClaim&&<WriterAdmissionNotice claim={writerClaim} language={language}/>}
 
     {submission&&<section className={`operations-card operations-result operations-result--${submission.phase}`} aria-live="polite">
       <div className="operations-card__heading"><div><p className="operations-panel__eyebrow">{t('SUBMITTED OPERATION','THAO TÁC ĐÃ GỬI')}</p><h3>{actionText(submission.action)}</h3></div>
@@ -565,6 +599,7 @@ export function ProjectOperationsPanel({project,language,onLockChange,onChanged,
 
       <aside className="operations-panel__aside" aria-label={t('Write coordination and maintenance','Điều phối ghi và bảo trì')}>
         <section className="operations-card"><div className="operations-card__heading"><h3>{t('Write coordination','Điều phối ghi')}</h3></div>
+          <ol><li>{t('Check writer admission.','Kiểm tra quyền bắt đầu ghi.')}</li><li>{t('If required, review recovery evidence and acknowledge it separately.','Nếu được yêu cầu, duyệt bằng chứng phục hồi và xác nhận riêng.')}</li><li>{t('Create a fresh preview for the next change.','Tạo bản xem trước mới cho thay đổi tiếp theo.')}</li></ol>
           {write?<><p className="operations-write-count"><span>{t('Active writes','Thao tác ghi đang chạy')}</span><strong>{write.activeWrites}</strong></p>
             <p className={write.recoveryRequired?'operations-panel__warning-text':'muted'}>{write.recoveryRequired?t('A recovery review is required before another write.','Cần duyệt phục hồi trước thao tác ghi khác.'):!write.admitted?t('Write admission is unavailable.','Hiện chưa được phép ghi.'):t('Write coordination is ready.','Điều phối ghi đã sẵn sàng.')}</p>
             {!write.admitted&&(write.projectOperations||hierarchyEnabled===true)&&<button type="button" disabled={!canRead} onClick={()=>void claim()}>{t('Check writer admission','Kiểm tra quyền bắt đầu ghi')}</button>}

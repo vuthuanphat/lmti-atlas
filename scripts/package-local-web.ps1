@@ -61,7 +61,8 @@ foreach ($taskPythonFile in (Get-ChildItem -LiteralPath $taskPythonSource -Recur
 if ($LASTEXITCODE -ne 0) { throw 'Knowledge owner bundle failed.' }
 & node (Join-Path $taskRoot 'scripts/build-agent-mapping-owner.mjs') (Join-Path $taskOutput 'share/lmti/mapping-owner')
 if ($LASTEXITCODE -ne 0) { throw 'Mapping owner bundle failed.' }
-foreach ($taskScript in @('start-local-web.ps1','test-local-web-package.ps1')) { Copy-Item -LiteralPath (Join-Path $taskRoot "scripts/$taskScript") -Destination (Join-Path $taskOutput 'scripts') }
+foreach ($taskScript in @('start-local-web.ps1','test-local-web-package.ps1','setup-local-web.ps1','open-local-workspace.ps1','workspace-profile.mjs')) { Copy-Item -LiteralPath (Join-Path $taskRoot "scripts/$taskScript") -Destination (Join-Path $taskOutput 'scripts') }
+Copy-Item -LiteralPath (Join-Path $taskRoot 'LMTI.cmd') -Destination $taskOutput
 $taskLicenseFolder=Join-Path $taskOutput 'share/lmti/third-party/web'
 New-Item -ItemType Directory -Force -Path $taskLicenseFolder | Out-Null
 foreach ($taskName in @('react','react-dom')) {

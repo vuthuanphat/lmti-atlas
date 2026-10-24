@@ -21,6 +21,11 @@ credentials/
 .lmti-web-broker.lock
 .lmti-web-broker.json
 .lmti-web-broker.*.tmp
+# Generated local workspace locators and grants (never publisher sources)
+lmti-workspace.json
+library-grants.json
+Open-LMTI.cmd
+Open-LMTI.ps1
 .cursor/mcp.json
 *.log
 npm-debug.log*

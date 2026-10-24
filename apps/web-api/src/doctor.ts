@@ -12,8 +12,9 @@ const required = [
   'share/lmti/scripts/agent-read-owner.py', 'share/lmti/knowledge-owner/index.js', 'share/lmti/knowledge-owner/package.json',
   ...['client','source','knowledge','observations','integrated','integration_config','integrated_mcp','operator_read'].map(n => `share/lmti/python/src/lmti_agent/${n}.py`),
   'apps/web-api/package.json', 'apps/web-ui/dist/index.html',
-  ...['main','server','owners','security','process','assets','contracts','doctor'].map(n => `apps/web-api/dist/${n}.js`),
-  'scripts/start-local-web.ps1', 'scripts/test-local-web-package.ps1'
+  ...['main','server','owners','security','process','assets','contracts','doctor','lifecycle','operator-control'].map(n => `apps/web-api/dist/${n}.js`),
+  'scripts/start-local-web.ps1', 'scripts/test-local-web-package.ps1',
+  'scripts/setup-local-web.ps1', 'scripts/open-local-workspace.ps1', 'scripts/workspace-profile.mjs', 'LMTI.cmd'
 ];
 
 // Existing packages may omit this capability. A present capability must be complete.

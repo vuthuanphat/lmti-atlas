@@ -11,10 +11,10 @@ general monitoring platform. See the [capability matrix](docs/web-capabilities.m
 
 | Priority | Work | Acceptance |
 | --- | --- | --- |
-| 1 | Correct empty-library onboarding and active documentation | EN/VI instructions match the shipped browser/backend package |
-| 2 | Core browser workflows: project/library, work/milestones, software/release/bindings | Native owner validation, explicit grants, preview/commit, stale/recovery handling and real-owner tests |
-| 3 | Scoped structure, reviewed code/document/memory context and proposals | Keep source identity, freshness, coverage and privacy gates; no direct Agent writes |
-| 4 | Candidate acceptance and release | Clean Windows, independent operator, final merged-SHA CI, checksums/source notices and publish preflight |
+| 1 | Easier first setup and reliable reopen | Fresh demo/empty workspace, reviewed scope, reusable local opener and actionable prerequisite errors |
+| 2 | Startup/session and recovery guidance | One-use authentication, distinct connection/owner/session errors, graceful drain and original-target recovery; no automatic repeat of unknown writes |
+| 3 | Candidate documentation and verification | Source/package runbooks match; record checks for changed source separately from the 771fc40 baseline |
+| Later acceptance | Clean Windows, independent operator and release provenance | These gates remain open; the current instruction forbids merging main or publishing |
 | Separate pilot | Actual clients/providers and live read-only observation | Record permission, environment, source and outcome; replay is not live evidence |
 
 Current implementation includes the React workspace, local authenticated Node
@@ -23,8 +23,11 @@ hierarchy, desired-settings review, project copy/activation/recovery and MCP
 configuration preview/apply/restore have owner-backed implementations. Source
 presence is not proof of every browser workflow or live provider acceptance.
 
-The [audit remediation plan](docs/plans/2026-10-23-audit-remediation.md) tracks the
-current implementation work. Historical M0/M1/CP-01/WEB-00–03/r5/r6 plans remain
+The [startup readiness plan](docs/plans/2026-10-24-startup-readiness.md) tracks
+current work after the [core audit remediation](docs/plans/2026-10-23-audit-remediation.md).
+Core library/content workflows are implemented; independent acceptance remains
+open. Scoped context/privacy and explicit native owner review remain invariants.
+Historical M0/M1/CP-01/WEB-00–03/r5/r6 plans remain
 design/evidence records; their old requirement to retain a Qt fallback is
 superseded. There is no fallback desktop to launch.
 

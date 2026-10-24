@@ -3,10 +3,21 @@
 The local operator can grant **Work → Project library** independently from
 project content, Agent reads, hierarchy and maintenance. The browser chooses
 opaque folder/candidate keys; it never supplies a filesystem path. Library
-membership never grants content or Agent access. Restart the launcher after
-creating/registering or changing bindings to establish a fresh explicit scope.
+membership never grants content or Agent access. Opening another tab with O or
+restarting the default saved launcher keeps the original IDs and grants.
 
 ## Trusted launcher setup
+
+For a new demo or empty workspace, use the
+[reviewed setup flow](local-web.md#thiết-lập-workspace-mới) and its reusable
+`Open-LMTI.cmd`. It prepares a bounded nonsecret library grant and grants content
+editing only for the initial project. By default it creates four approved source
+folders: initial `source/` and unused `source-2/`, `source-3/`, `source-4/`.
+`-ProjectFolderCount` selects 1–8, default 4, entirely within the new workspace;
+all folders appear in the CREATE review. This grants no access to a real repository.
+It does not grant Agent, hierarchy or
+project copy/activation access. The JSON procedure below is the advanced path
+for explicitly selected existing data.
 
 Create a reviewed local JSON file outside the repository and `.lmti`. It contains
 nonsecret locators only; do not put credentials in this file or project metadata.
@@ -32,12 +43,47 @@ refused. The parent is only for new metadata databases; source folders must
 already exist. Only the trusted operator chooses this file:
 
 ```powershell
-& .\scripts\start-local-web.ps1 -DataDirectory 'C:\path\to\studio-data' -LibraryManagementFile 'C:\path\to\library-grants.json'
+& .\scripts\start-local-web.ps1 -DataDirectory 'C:\path\to\studio-data' -LibraryManagementFile 'C:\path\to\library-grants.json' -Interactive
 ```
 
 Content editing has a separate grant, for example
 `-ProjectId existing-project -ProjectContent -ContentProjectId existing-project`.
 This grant cannot be inferred from the library management file.
+
+## Open a newly registered project
+
+Before creating a second project, complete the explicit reviewed library upgrade
+with separately granted maintenance, then select an **unused** approved folder,
+such as key `workspace-source-2` (`source-2/`). The initial `source/` is already
+bound; native library folder keys are unique and cannot be reused for another
+project. Existing one-folder profiles stay valid but have no spare folder; use a
+separate reviewed advanced grant instead of editing the saved profile to widen it.
+
+After the native owner confirms registration, open a new session with an
+explicit catalog selection. First use Q in the older workspace console and wait
+for drain; a second broker must not bypass its writer admission. From the trusted
+package directory:
+
+```powershell
+& .\scripts\open-local-workspace.ps1 -WorkspaceFile 'C:\LMTI-demo\lmti-workspace.json' -ProjectId new-project
+```
+
+The new project's content is read-only. Saved library-management/maintenance
+grants remain active, so the whole session is not read-only. To explicitly grant
+content editing to every selected ID, use the `-GrantProjectContent` **switch**:
+
+```powershell
+& .\scripts\open-local-workspace.ps1 -WorkspaceFile 'C:\LMTI-demo\lmti-workspace.json' -ProjectId new-project -GrantProjectContent
+```
+
+The native catalog validates each selected ID; the profile is not rewritten.
+With a selection containing the initial and new project but no switch, only
+the original content grant is retained. `-GrantProjectContent` requires explicit
+IDs and grants all selected IDs, so select only projects you intend to edit.
+Add `-ValidateOnly` to inspect `selectedProjectIds` and `contentProjectIds`
+without starting a service. This grants neither Agent nor hierarchy/copy/activation
+access. A normal double-click still uses the original saved scope. Retain that
+original scope for unresolved recovery; changing IDs does not clear a writer gate.
 
 ## Review and confirm
 

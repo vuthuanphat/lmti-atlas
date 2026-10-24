@@ -21,6 +21,11 @@ compatibility, known-limitations and rollback information.
 - Thirteen typed browser content categories including work/milestones, software,
   releases/bindings and verification, with review/confirmation and owner recovery.
 - English/Vietnamese onboarding separates empty libraries from failed owner reads.
+- Reviewed demo/empty workspace setup, nonsecret pinned launch profile and reusable
+  `Open-LMTI.cmd`; package/runtime checks precede workspace creation.
+- Interactive operator console with fresh authenticated tabs and graceful drain;
+  distinct session/connection/owner and writer/recovery guidance, plus a read-only
+  service connection check.
 - Windows native audit ACL helper and artifact/third-party release materials.
 
 ### Changed
@@ -39,6 +44,9 @@ compatibility, known-limitations and rollback information.
 
 - Preserve UTF-8 JSON on Windows PowerShell 5 launcher/doctor pipes; use explicit
   encoding without changing grants, path validation or owner authority.
+- Workspace reopen validates saved grants and package integrity; it does not
+  persist browser tokens, install dependencies, change execution policy or
+  automatically acknowledge recovery/migrate schemas.
 
 - Move Go credential-scanning source to `internal/credentialscan`; remove obsolete
   source-only exceptions for `internal/secrets`. Secret-path rules remain enforced.

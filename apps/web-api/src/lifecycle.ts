@@ -4,7 +4,7 @@ interface LocalApiLifetime {
 }
 
 /** The listener retains its signal handlers until accepted work has closed. */
-export async function startApiLifecycle(api: LocalApiLifetime, initialize: () => Promise<void>): Promise<() => Promise<void>> {
+export async function startApiLifecycle(api: LocalApiLifetime, initialize: () => Promise<void>, options: {operatorControlled?: boolean} = {}): Promise<() => Promise<void>> {
   let closing: Promise<void> | undefined;
   let idle: ReturnType<typeof setInterval> | undefined;
   const shutdown = () => {
@@ -27,7 +27,15 @@ export async function startApiLifecycle(api: LocalApiLifetime, initialize: () =>
   process.on('SIGTERM', onSignal);
   try {
     await initialize();
-    if (!closing) {
+    // A signal may have completed shutdown while initialization awaited the
+    // OS browser opener. Never advertise a listener that has already closed.
+    if (closing) {
+      await closing;
+      throw new Error('Local API startup was interrupted.');
+    }
+    // An explicitly attached local console owns this lifetime. Authentication
+    // still expires normally; only that console can ask for a fresh launch.
+    if (!options.operatorControlled) {
       idle = setInterval(() => { if (api.isIdle()) onSignal(); }, 30000);
       idle.unref();
     }

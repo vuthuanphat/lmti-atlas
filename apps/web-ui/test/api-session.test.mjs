@@ -113,3 +113,41 @@ test('expiry in operation status or commit sends no retry, revoke or compensatin
     assert.equal(api.calls[0].options.method, method);
   }
 });
+
+test('connection observers cover child requests while network failures retain the bearer and authentication semantics', async () => {
+  const api = harness(), states = [], authReasons = [];
+  api.subscribeServiceConnection(state => states.push(state));
+  api.subscribeSessionInvalidated(code => authReasons.push(code));
+  api.result({ apiVersion: 1, ok: true, data: { token: 'synthetic-unit-test-capability' } });
+  await api.bootstrap();
+  api.transport(async () => { throw new Error('Synthetic child panel transport failure'); });
+  await assert.rejects(api.request('/api/v1/projects/fixture/content/commit', 'POST', { previewId: 'fixture' }), error => error.code === 'NETWORK');
+  assert.equal(api.getServiceConnection(), 'unreachable');
+  assert.deepEqual(authReasons, []);
+  api.result(denied('OWNER_UNAVAILABLE'));
+  await assert.rejects(api.request('/api/v1/write-status'), error => error.code === 'OWNER_UNAVAILABLE');
+  assert.equal(api.getServiceConnection(), 'reachable');
+  assert.equal(api.calls[2].options.headers.Authorization, 'Bearer synthetic-unit-test-capability');
+  assert.deepEqual(authReasons, []);
+  api.result(denied('SESSION_EXPIRED'));
+  await assert.rejects(api.request('/api/v1/write-status'), error => error.code === 'SESSION_EXPIRED');
+  assert.deepEqual(authReasons, ['SESSION_EXPIRED']);
+  assert.deepEqual(states, ['reachable', 'unreachable', 'reachable', 'reachable']);
+  assert.equal(api.calls.length, 4, 'No implicit read, retry, bootstrap or compensating write');
+});
+
+test('aborted reads do not mark the service unreachable and presentation observers cannot replace errors', async () => {
+  const api = harness(), states = [];
+  const unsubscribe = api.subscribeServiceConnection(state => states.push(state));
+  api.subscribeServiceConnection(() => { throw new Error('Synthetic view failure'); });
+  const aborted = new DOMException('Synthetic cancellation', 'AbortError');
+  api.transport(async () => { throw aborted; });
+  await assert.rejects(api.request('/api/v1/write-status'), error => error === aborted);
+  assert.deepEqual(states, []);
+  api.transport(async () => { throw new Error('Synthetic service failure'); });
+  await assert.rejects(api.request('/api/v1/write-status'), error => error.code === 'NETWORK');
+  unsubscribe(); unsubscribe();
+  api.result({ apiVersion: 1, ok: true, data: {} });
+  await api.request('/api/v1/write-status');
+  assert.deepEqual(states, ['unreachable']);
+});

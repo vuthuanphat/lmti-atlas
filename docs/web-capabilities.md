@@ -7,7 +7,7 @@ passing fixture does not prove live client/provider acceptance.
 | Capability | Browser/source status | Owner / constraint |
 | --- | --- | --- |
 | Overview, project selection, EN/VI, sessions | Implemented | Local authenticated API; current source scope |
-| Empty/unavailable project onboarding | Operator setup guidance; no retired GUI instructions | Existing native init-project/library-register commands; refresh/relaunch for new scope |
+| Empty/unavailable project onboarding | Reviewed fresh demo/empty setup, saved opener and distinct startup/session/owner errors; no retired GUI instructions | Explicit native-catalog ID selection for new scope; O/default saved opener retains original IDs; no implicit grants |
 | MCP profile and Codex/Cursor config | Preview/apply/restore/status/export implemented | Native profile + Python config owner; client owns authentication |
 | Logical/physical hierarchy | Implemented with explicit grants | Native typed review/commit; original binding/revision checks |
 | Inventory, Knowledge, desired settings | Implemented per source grants | Scoped SDK, evidence/freshness; no device commands |

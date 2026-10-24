@@ -1,12 +1,40 @@
 # LMTI — Kế hoạch tổng thể: quản trị MCP và lớp kết nối Agent với dự án
 
+## Ưu tiên hiện hành — 24/10/2026
+
+Chủ sản phẩm yêu cầu hoàn thiện khởi động/phục hồi, cài đặt dễ dùng và đồng bộ
+tài liệu, kiểm thử lại đầy đủ; **chưa merge main, tạo tag hay publish**. Thực hiện
+theo [kế hoạch startup readiness](plans/2026-10-24-startup-readiness.md).
+
+1. Một lối thiết lập workspace local mới bằng demo hoặc dự án trống, có xem và
+   duyệt quyền; mở lại bằng launcher đã lưu cấu hình nonsecret.
+2. Phiên browser dùng một lần, thông báo rõ khi kết nối/hết phiên/owner lỗi và
+   luồng phục hồi giữ nguyên kiểm tra writer, đích ban đầu và kết quả unknown.
+3. Tài liệu, package và bằng chứng cùng candidate; chạy lại test cho source đổi.
+   Không tự cài dependency, nâng schema, ghi lại thao tác unknown hay xác nhận
+   phục hồi thay người vận hành.
+
+[Remediation 23/10](plans/2026-10-23-audit-remediation.md) đã có library management
+và 13 nhóm nội dung web. Baseline `771fc40` có bốn job CI thành công; xem
+[QA theo commit](releases/v0.2.0-alpha.1-qa.md). Kết quả đó không nghiệm thu source
+đang đổi, Windows sạch hay người vận hành độc lập. Drive/Impact nâng cao vẫn
+[để sau](plans/2026-10-23-optional-integrations.md); nguồn live/client/provider
+giữ các gate riêng. React + Vite tiếp tục là giao diện duy nhất.
+
+## Hồ sơ định hướng và bằng chứng trước 24/10
+
+Các mốc r6, thống kê test, package và điều kiện Qt/web bên dưới được giữ theo
+ngày của từng lượt triển khai. Chúng không phải trạng thái mới nhất hoặc yêu cầu
+khôi phục Qt desktop. Khi có khác biệt, ưu tiên hiện hành ở trên, ADR browser-only,
+runbook hiện tại và QA theo đúng commit có hiệu lực.
+
 **Chỉ đạo 23/10/2026:** loại bỏ ứng dụng Windows native Qt; React + Vite là
 giao diện duy nhất. Giữ backend C++/Qt Core/Sql và Python/TS, cùng khả năng chạy
 web trên Windows. [Quyết định thay thế](adr/2026-10-23-browser-only-ui.md). Các
 mốc Qt và điều kiện giữ desktop bên dưới là lịch sử; gate Windows sạch và người
 nghiệm thu độc lập cho web/backend vẫn mở.
 
-Ngày cập nhật: 2026-10-19. Phiên bản **r6** (giữ thứ tự build/nghiệm thu; cập nhật bằng chứng triển khai).
+Hồ sơ r6 bắt đầu ngày 2026-10-19 (giữ thứ tự build/nghiệm thu và bằng chứng có ngày).
 
 **Chỉ đạo bổ sung của chủ sản phẩm ngày 19/10:** xây nền tảng bằng controlled
 replay trước, chọn thiết bị/nguồn thật sau khi build sẵn sàng. Người vận hành
@@ -209,18 +237,18 @@ suite API/package lịch sử đạt 13/13; gói tích hợp r3 ngày 19/10 đ�
 vẫn giữ gate client/operator/Windows sạch.
 Baseline 500 dự án/50 dự án nhiều bản ghi đã dẫn đến [projection metadata native](benchmarks/2026-10-14-web-local-baseline.md):
 p95 trang 50 mục giảm từ 5,61 s xuống 264 ms trong phép đo tổng hợp. Chưa thay
-ngưỡng nghiệm thu/lợi ích pilot; package opt-in mới giữ các owner và Qt dự phòng.
+ngưỡng nghiệm thu/lợi ích pilot; package tại mốc này còn Qt dự phòng, đã gỡ ngày 23/10.
 Đã có [lệnh xác minh Windows và wiring CI](plans/2026-10-14-web-verification-runner.md),
-local đạt doctor/API/Qt/IPC. Chưa có run CI từ xa hay nghiệm thu Windows sạch;
-không coi source workflow là bằng chứng gate đã đạt.
+local đạt doctor/API/Qt/IPC. Tại mốc 14/10 chưa có run CI từ xa hay nghiệm thu
+Windows sạch; CI cho baseline 23/10 đã được ghi riêng trong QA hiện hành.
 Cursor Editor chưa cài theo xác nhận của chủ sản phẩm. Đã có
 [Cursor CLI thật liệt kê 4 tools từ export của package mới](plans/2026-10-14-cursor-cli-discovery.md)
 trong môi trường riêng; scoped read/Editor/operator/provider vẫn chưa kiểm chứng.
 Không coi discovery này là hoàn tất gate Cursor.
 [Kế hoạch chuyển UI](plans/2026-10-13-web-ui-transition.md)
 và [ADR đề xuất](adr/2026-10-13-web-presentation.md) mô tả phạm vi. Giữ C++ owners,
-SQLite, Python SDK/MCP và TS/Go compatibility; Qt Widgets là giao diện dự phòng
-đến khi đạt parity. Không tiếp tục mở rộng trang trí Qt hoặc rewrite domain.
+SQLite, Python SDK/MCP và TS/Go compatibility. Điều kiện Qt Widgets dự phòng đến
+parity của kế hoạch cũ đã bị ADR 23/10 thay thế; không khôi phục Qt hay rewrite domain.
 
 ## 1. Định nghĩa và mục tiêu
 
@@ -469,14 +497,14 @@ Agent và UI nhìn cùng source/freshness semantics.
 | Python SDK/MCP stdio | Envelope chung, nối owner context và observation replay đã triển khai | Nghiệm thu Agent/client thật, nguồn observation live và workload đại diện |
 | TS compile/context/privacy/memory | Project Atlas, context có quyền, memory/lesson và API owner cố định cho Agent | Mapping rõ ràng, chỉ summary được phép; chưa chứng minh hiểu toàn repository hoặc thay thế language server |
 | TS impact + native snapshot/review | Quan hệ, bằng chứng và review | Mapping code/triển khai/observation, freshness và giá trị trên dự án thật |
-| Qt desktop/library | UI topology và fallback khi chuyển MCP sang web; giữ library owner | WEB-01/02 API và React đã có; folder-picker web và đầy đủ parity còn mở |
+| React workspace / native library owner | Giao diện duy nhất; chọn dự án và thư viện qua native owner | Nghiệm thu startup/recovery/operator; Qt desktop và fallback đã gỡ ngày 23/10 |
 | Drive session reader | Nguồn tài liệu tùy chọn | OAuth thật, publisher acceptance, egress contract nếu dùng cho Agent |
 | Go memory | Giữ compatibility hiện có | Không mở thêm topology/telemetry domain trong Go |
 
 Các [ADR đã nhận](plans/README.md#architecture-decisions) tiếp tục giữ hiệu lực;
 mở rộng phải có ADR bổ sung, không sửa lịch sử thành lời khẳng định đã triển khai.
-ADR web đề xuất chỉ thay vai trò presentation Qt sau parity/cutover, không thay
-native schemas hoặc các boundary Agent/storage. Qt Core/Sql vẫn được giữ.
+ADR browser-only ngày 23/10 thay phần điều kiện giữ Qt presentation của ADR web
+cũ; native schemas và các boundary Agent/storage không đổi. Qt Core/Sql vẫn được giữ.
 Native, TS memory, impact và observation giữ owner riêng. Python gọi API/binary
 tin cậy với tham số cố định; không nhận raw store handle. JSON chỉ là boundary,
 không trở thành domain model hoặc durable topology. Không thêm Protobuf/gRPC
@@ -1228,7 +1256,9 @@ và raw report đã chốt.
 
 Bản ZIP mới chỉ chứa file được manifest liệt kê cùng `manifest.json`, không có
 cache hay dữ liệu fixture. ZIP/bằng chứng increment30 và bằng chứng increment31
-được giữ nguyên; increment31 không có ZIP riêng. Gói: [LMTI_Build_Cong_Schema3_2026-10-21.zip](C:/example-user/Documents/Codex/2026-10-19/b-n/outputs/LMTI_Build_Cong_Schema3_2026-10-21.zip); SHA256 `0ee305348e0e01fbaa9224b4cf1a5c6fc11be8c9acfd56e0f3f03a6d0d01a4a1`.
+được giữ nguyên; increment31 không có ZIP riêng. Gói lịch sử local
+`LMTI_Build_Cong_Schema3_2026-10-21.zip` không nằm trong phân phối hiện tại;
+SHA256 `0ee305348e0e01fbaa9224b4cf1a5c6fc11be8c9acfd56e0f3f03a6d0d01a4a1`.
 
 Giới hạn: kiểm tra cục bộ trên Windows hiện tại; ghi/replay chỉ trong API riêng
 và fixture được kiểm soát. Không có thiết bị thật, thử mất điện, browser,
@@ -1242,7 +1272,8 @@ Các gate còn mở:
 
 Chưa tuyên bố hoàn thành toàn bộ MVP.
 
-Bằng chứng chi tiết: [LMTI_Kiem_chung_Cong_Schema3_2026-10-21.json](C:/example-user/Documents/Codex/2026-10-19/b-n/outputs/LMTI_Kiem_chung_Cong_Schema3_2026-10-21.json).
+Bằng chứng lịch sử local: `LMTI_Kiem_chung_Cong_Schema3_2026-10-21.json`;
+không nằm trong phân phối hiện tại, không phải liên kết tải candidate mới.
 
 
 ## Cập nhật giao diện workspace — 21/10/2026

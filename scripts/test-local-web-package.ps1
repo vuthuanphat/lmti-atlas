@@ -13,8 +13,12 @@ if (-not $PackageDirectory) {
 }
 if ($PackageDirectory.Length -gt 1024 -or $PackageDirectory -match '[\x00-\x1f"]' -or $PackageDirectory.Replace('\','/').StartsWith('//')) { throw 'Choose a local package directory; network/device paths are refused.' }
 $taskPackage=(Resolve-Path -LiteralPath $PackageDirectory).Path
-$taskNode=(Get-Command node -CommandType Application | Select-Object -First 1).Source
-$taskPython=(Get-Command python -CommandType Application | Select-Object -First 1).Source
+$taskNodeCommand=Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+$taskPythonCommand=Get-Command python -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $taskNodeCommand) { throw 'Node.js is missing. Install trusted Node.js 24+ x64 from nodejs.org, then reopen this console.' }
+if (-not $taskPythonCommand) { throw 'Python is missing. Install trusted Python 3.11+ x64 from python.org with PATH enabled, then reopen this console.' }
+$taskNode=$taskNodeCommand.Source
+$taskPython=$taskPythonCommand.Source
 $taskDoctor=Join-Path $taskPackage 'apps/web-api/dist/doctor.js'
 if (-not (Test-Path -LiteralPath $taskDoctor -PathType Leaf)) { throw 'Package doctor is missing. Build a current package.' }
 foreach ($taskLocation in @($taskNode,$taskPython,$taskDoctor)) {
